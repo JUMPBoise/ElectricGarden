@@ -1,4 +1,4 @@
-#include <Fast.h>
+#include <FastLED.h>
 #include <SoftwareSerial.h>
 
 
@@ -10,9 +10,13 @@
 #define LED_PIN     3
 #define COLOR_ORDER GRB
 #define CHIPSET     WS2812B
-#define NUM_LEDS    300
+#define NUM_LEDS    50  //300
 #define BRIGHTNESS  255
 #define FRAMES_PER_SECOND 30
+
+// HC-12
+#define HC12_TX_TO_MCU_RX_PIN 10
+#define HC12_RX_FROM_MCU_TX_PIN 11
 
 
 /***********
@@ -33,7 +37,7 @@ int waveC = 4;
 CRGBPalette16 currentPalette(RainbowColors_p);
 CRGBPalette16 targetPalette(PartyColors_p);
 
-SoftwareSerial HC12(10, 11);         // HC-12 TX Pin, HC-12 RX Pin
+SoftwareSerial HC12(HC12_TX_TO_MCU_RX_PIN, HC12_RX_FROM_MCU_TX_PIN);
 
 
 /************
@@ -198,7 +202,7 @@ void pattern6_startup()
 
 bool pattern15()
 {
-  static dot = 0;
+  static unsigned int dot = 0;
 
   EVERY_N_MILLISECONDS(30) {
     leds[dot] = CRGB::Blue;
@@ -324,7 +328,7 @@ void loop()
         State = 5;
       }
       break;
-    default:
+    //default:
       // TODO ross 9 Feb 2018:  We should indicate an internal error somehow if State is invalid.
   }
 }
