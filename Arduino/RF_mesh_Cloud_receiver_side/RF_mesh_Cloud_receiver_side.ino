@@ -15,8 +15,8 @@
 #define FRAMES_PER_SECOND 30
 
 // HC-12
-#define HC12_TX_TO_MCU_RX_PIN 10
-#define HC12_RX_FROM_MCU_TX_PIN 11
+#define HC12_TX_TO_MCU_RX_PIN 2 // ross 10
+#define HC12_RX_FROM_MCU_TX_PIN 4 // ross 11
 
 
 /***********
