@@ -15,32 +15,32 @@
 #define FRAMES_PER_SECOND 30
 
 // HC-12 configuration for JUMP
-#define HC12_TX_TO_MCU_RX_PIN 10
-#define HC12_RX_FROM_MCU_TX_PIN 11
+#define HC12_TX_TO_ARDUINO_RX_PIN 10
+#define HC12_RX_FROM_ARDUINO_TX_PIN 11
 // HC-12 configuration for Ross'd development board
-//#define HC12_TX_TO_MCU_RX_PIN 2
-//#define HC12_RX_FROM_MCU_TX_PIN 4
+//#define HC12_TX_TO_ARDUINO_RX_PIN 2
+//#define HC12_RX_FROM_ARDUINO_TX_PIN 4
 
 
 /***********
  * Globals *
  ***********/
 
-CRGB leds[NUM_LEDS];
+static CRGB leds[NUM_LEDS];
 
 static uint16_t dist;             // A random number for our noise generator.
 static uint16_t scale = 30;       // Wouldn't recommend changing this on the fly, or the animation will be really blocky.
 static uint8_t maxChanges = 48;   // Value for blending between palettes.
 
 // variables for aniamtion
-int waveA = 10;
-int waveB = 1;
-int waveC = 4;
+static int waveA = 10;
+static int waveB = 1;
+static int waveC = 4;
 
-CRGBPalette16 currentPalette(RainbowColors_p);
-CRGBPalette16 targetPalette(PartyColors_p);
+static CRGBPalette16 currentPalette(RainbowColors_p);
+static CRGBPalette16 targetPalette(PartyColors_p);
 
-SoftwareSerial HC12(HC12_TX_TO_MCU_RX_PIN, HC12_RX_FROM_MCU_TX_PIN);
+static SoftwareSerial HC12(HC12_TX_TO_ARDUINO_RX_PIN, HC12_RX_FROM_ARDUINO_TX_PIN);
 
 
 /************
@@ -186,7 +186,7 @@ void pattern5_cloud()
 }
 
 
-void pattern6_startup()
+void pattern6_lava()
 {
   // sine variables 
   waveA = 3;    // high number more speratic 0-150 default 10
@@ -206,7 +206,7 @@ void pattern6_startup()
 }
 
 
-bool pattern15()
+bool pattern15_startup()
 {
   static unsigned int dot = 0;
 
@@ -325,11 +325,11 @@ void loop()
       pattern5_cloud();
       break;
     case 6:
-      pattern6_startup();
+      pattern6_lava();
       break;
     case 15:
       // When pattern 15 is finished, switch to pattern 5.
-      if (!pattern15()) {
+      if (!pattern15_startup()) {
         State = 5;
       }
       break;
