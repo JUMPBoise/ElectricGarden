@@ -7,16 +7,19 @@
  *****************/
  
 // fastLED
-#define LED_PIN     3
+#define LED_STRIP_PIN 3
 #define COLOR_ORDER GRB
-#define CHIPSET     WS2812B
-#define NUM_LEDS    50  //300
-#define BRIGHTNESS  255
+#define CHIPSET WS2812B
+#define NUM_LEDS 300
+#define BRIGHTNESS 255
 #define FRAMES_PER_SECOND 30
 
-// HC-12
-#define HC12_TX_TO_MCU_RX_PIN 2 // ross 10
-#define HC12_RX_FROM_MCU_TX_PIN 4 // ross 11
+// HC-12 configuration for JUMP
+#define HC12_TX_TO_MCU_RX_PIN 10
+#define HC12_RX_FROM_MCU_TX_PIN 11
+// HC-12 configuration for Ross'd development board
+//#define HC12_TX_TO_MCU_RX_PIN 2
+//#define HC12_RX_FROM_MCU_TX_PIN 4
 
 
 /***********
@@ -44,6 +47,9 @@ SoftwareSerial HC12(HC12_TX_TO_MCU_RX_PIN, HC12_RX_FROM_MCU_TX_PIN);
  * Patterns *
  ************/
 
+// FastLED provides several 'preset' palettes: RainbowColors_p, RainbowStripeColors_p,
+// OceanColors_p, CloudColors_p, LavaColors_p, ForestColors_p, and PartyColors_p.
+
 // ---------- Noise Generator1 ----------
 void fillnoise8()
 {
@@ -61,7 +67,7 @@ void fillnoise8()
 }
 
 
-void pattern0_walkIn()
+void pattern0_off()
 {
   // sine variables 
   waveA = 12;   // high number more speratic 0-150 default 10
@@ -73,7 +79,7 @@ void pattern0_walkIn()
     fillnoise8();                                                           // Update the LED array with noise at the new location
   }
 
-  EVERY_N_SECONDS(1) {             // Change the target palette to a random one every 5 seconds.
+  EVERY_N_SECONDS(1) {             // Change the target palette to a random one periodically.
      targetPalette = CRGBPalette16(CRGB::Black); }
 
   LEDS.show();                    // Display the LEDs at every loop cycle.  
@@ -233,7 +239,7 @@ void setup()
   HC12.begin(9600);         // Open serial port to HC12
  
   //fastled setup
-  FastLED.addLeds<CHIPSET, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
+  FastLED.addLeds<CHIPSET, LED_STRIP_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
   FastLED.setBrightness(BRIGHTNESS);
 
   dist = random16(12345);   // A semi-random number for our noise generator
@@ -299,10 +305,9 @@ void loop()
   Serial.print(" State=");
   Serial.println(State);
 
-
   switch (State) {
     case 0:
-      pattern0_walkIn();
+      pattern0_off();
       break;
     case 1:
       pattern1_walkIn();
@@ -332,7 +337,4 @@ void loop()
       // TODO ross 9 Feb 2018:  We should indicate an internal error somehow if State is invalid.
   }
 }
-
-// FastLED provides several 'preset' palettes: RainbowColors_p, RainbowStripeColors_p,
-// OceanColors_p, CloudColors_p, LavaColors_p, ForestColors_p, and PartyColors_p.
 
