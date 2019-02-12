@@ -10,8 +10,8 @@
 #define LED_STRIP_PIN 3
 #define COLOR_ORDER GRB
 #define CHIPSET WS2812B
-#define NUM_LEDS    50  //ross 300
-#define NUM_LEDS_IN_BOTTOM_PART 25  //ross 150
+#define NUM_LEDS 300
+#define NUM_LEDS_IN_BOTTOM_PART 150
 #define BRIGHTNESS 200
 #define FRAMES_PER_SECOND 30
 
@@ -58,9 +58,9 @@ static uint8_t gHue = 0;       // rotating "base color" used by many of the patt
 // OceanColors_p, CloudColors_p, LavaColors_p, ForestColors_p, and PartyColors_p.
 
 
-void addGlitter( fract8 chanceOfGlitter)
+void addGlitter(fract8 chanceOfGlitter)
 {
-  if( random8() < chanceOfGlitter) {
+  if(random8() < chanceOfGlitter) {
     leds[random16(NUM_LEDS)] += CRGB::White;
   }
 }
@@ -161,7 +161,7 @@ void pattern2_singleTrailz()
 void pattern3_rainbowSparkle()
 {
   // FastLED's built-in rainbow generator
-  fill_rainbow( leds, NUM_LEDS, gHue, 7);
+  fill_rainbow(leds, NUM_LEDS, gHue, 7);
   addGlitter(20);
   LEDS.show();                    // Display the LEDs at every loop cycle.
 }
@@ -172,7 +172,7 @@ void pattern4_randomDots()
   leds[randomNumber] += CHSV(gHue, 255, 192);
   fadeToBlackBy(leds, NUM_LEDS, 3);
   LEDS.show();                    // Display the LED's at every loop cycle.
-  // TODO:  Should this be += or just = ?  Incrementing by CRGB::Black probably doesn't do anything.
+  // TODO ross 11 Feb. 2019:  Should this be += or just = ?  Incrementing by CRGB::Black probably doesn't do anything.
   leds[randomNumber] += CRGB::Black;
 }
 
@@ -271,7 +271,7 @@ void setup()
 
   //fastled setup
   FastLED.addLeds<CHIPSET, LED_STRIP_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
-  FastLED.setBrightness( BRIGHTNESS );
+  FastLED.setBrightness(BRIGHTNESS);
 
   dist = random16(12345);          // A semi-random number for our noise generator
 }
@@ -331,6 +331,9 @@ void loop()
   else if (BTdata == "4") Active = 4;
   else if (BTdata == "5") Active = 5;
   else if (BTdata == "6") Active = 6;
+  // TODO ross 11 Feb. 2019:  are we supposed to allow patterns 7 and 8?  the previous version did not ever set Active to those values.
+  else if (BTdata == "7") Active = 7;
+  else if (BTdata == "8") Active = 8;
   else if (BTdata == "")  Active = 86;
 
   // We're finished with the current message, so clear it.
@@ -385,14 +388,8 @@ void loop()
     case 8:
       pattern8_multiTrailz();
       break;
-    case 15:
-      // When pattern 15 is finished, switch to pattern 5.
-      if (!pattern15_startup()) {
-        State = 5;
-      }
-      break;
     //default:
-      // TODO ross 9 Feb 2018:  We should indicate an internal error somehow if State is invalid.
+      // TODO ross 11 Feb 2018:  We should indicate an internal error somehow if State is invalid.
   }
 }
 

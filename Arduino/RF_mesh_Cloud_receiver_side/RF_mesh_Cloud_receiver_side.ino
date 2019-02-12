@@ -327,6 +327,9 @@ void loop()
     case 6:
       pattern6_lava();
       break;
+    // TODO ross 11 Feb. 2019:  If patterns 7 and 8 are enabled for the trees, do we need to assign cloud patterns for 7 and 8 here
+    //                          (and handle 7 and 8 the "if BTdata" stuff above)?  If we don't, whatever pattern happens to be
+    //                          active on the clouds at the moment the trees switch to 7 or 8 will remain active on the clouds.
     case 15:
       // When pattern 15 is finished, switch to pattern 5.
       if (!pattern15_startup()) {
