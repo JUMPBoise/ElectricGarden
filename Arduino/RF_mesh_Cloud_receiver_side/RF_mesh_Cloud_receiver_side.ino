@@ -5,7 +5,7 @@
 /*****************
  * Configuration *
  *****************/
- 
+
 // fastLED
 #define LED_STRIP_PIN 3
 #define COLOR_ORDER GRB
@@ -61,7 +61,7 @@ void fillnoise8()
     leds[i] = ColorFromPalette(currentPalette, index, 255, LINEARBLEND);
   }
   // Moving along the distance (that random number we started out with). Vary it a bit with a sine wave.
-  dist += beatsin8(waveA,waveB, waveC);                                               
+  dist += beatsin8(waveA, waveB, waveC);
 
   // In some sketches, I've used millis() instead of an incremented counter. Works a treat.
 }
@@ -69,7 +69,7 @@ void fillnoise8()
 
 void pattern0_off()
 {
-  // sine variables 
+  // sine variables
   waveA = 12;   // high number more speratic 0-150 default 10
   waveB = .5;   // fast pulse a high number 0-5     default 1
   waveC = 2;    // randomizes sine wave pulse higher number fast 0-80 default 4
@@ -82,13 +82,13 @@ void pattern0_off()
   EVERY_N_SECONDS(1) {             // Change the target palette to a random one periodically.
      targetPalette = CRGBPalette16(CRGB::Black); }
 
-  LEDS.show();                    // Display the LEDs at every loop cycle.  
+  LEDS.show();                    // Display the LEDs at every loop cycle.
 }
 
 
 void pattern1_walkIn()
 {
-  // sine variables 
+  // sine variables
   waveA = 12;   // high number more speratic 0-150 default 10
   waveB = .5;   // fast pulse a high number 0-5     default 1
   waveC = 2;    // randomizes sine wave pulse higher number fast 0-80 default 4
@@ -102,17 +102,17 @@ void pattern1_walkIn()
      targetPalette = CRGBPalette16(RainbowColors_p);
   }
 
-  LEDS.show();                    // Display the LEDs at every loop cycle.  
+  LEDS.show();                    // Display the LEDs at every loop cycle.
 }
 
 
 void pattern2_ocean()
 {
-  // sine variables 
+  // sine variables
   waveA = 25;   // high number more speratic 0-150 default 10
   waveB = .3;   // fast pulse a high number 0-5     default 1
   waveC = 1;    // randomizes sine wave pulse higher number fast 0-80 default 4
- 
+
   EVERY_N_MILLISECONDS(10) {
     nblendPaletteTowardPalette(currentPalette, targetPalette, maxChanges);  // Blend towards the target palette
     fillnoise8();                                                           // Update the LED array with noise at the new location
@@ -122,17 +122,17 @@ void pattern2_ocean()
      targetPalette = CRGBPalette16(OceanColors_p);
   }
 
-  LEDS.show();                    // Display the LEDs at every loop cycle.  
+  LEDS.show();                    // Display the LEDs at every loop cycle.
 }
 
 
 void pattern3_rainbowStripe()
 {
-  // sine variables 
+  // sine variables
   waveA = 20;   // high number more speratic 0-150 default 10
   waveB = 1;    // fast pulse a high number 0-5     default 1
   waveC = 2;    // randomizes sine wave pulse higher number fast 0-80 default 4
- 
+
   EVERY_N_MILLISECONDS(10) {
     nblendPaletteTowardPalette(currentPalette, targetPalette, maxChanges);  // Blend towards the target palette
     fillnoise8();                                                           // Update the LED array with noise at the new location
@@ -142,17 +142,17 @@ void pattern3_rainbowStripe()
      targetPalette = CRGBPalette16(RainbowStripeColors_p);
   }
 
-  LEDS.show();                    // Display the LEDs at every loop cycle.  
+  LEDS.show();                    // Display the LEDs at every loop cycle.
 }
 
 
 void pattern4_party()
 {
-  // sine variables 
+  // sine variables
   waveA = 26;   // high number more speratic 0-150 default 10
   waveB = 3.5;  // fast pulse a high number 0-5     default 1
   waveC = 16;   // randomizes sine wave pulse higher number fast 0-80 default 4
- 
+
   EVERY_N_MILLISECONDS(10) {
     nblendPaletteTowardPalette(currentPalette, targetPalette, maxChanges);  // Blend towards the target palette
     fillnoise8();                                                          // Update the LED array with noise at the new location
@@ -162,17 +162,17 @@ void pattern4_party()
     targetPalette = CRGBPalette16(PartyColors_p);   // max of 4 colors
  }
 
-  LEDS.show();                    // Display the LEDs at every loop cycle.  
+  LEDS.show();                    // Display the LEDs at every loop cycle.
 }
 
 
 void pattern5_cloud()
 {
-  // sine variables 
+  // sine variables
   waveA = 2;    // high number more speratic 0-150 default 10
   waveB = .1;   // fast pulse a high number 0-5     default 1
   waveC = 2;    // randomizes sine wave pulse higher number fast 0-80 default 4
-  
+
   EVERY_N_MILLISECONDS(10) {
     nblendPaletteTowardPalette(currentPalette, targetPalette, maxChanges);  // Blend towards the target palette
     fillnoise8();                                                           // Update the LED array with noise at the new location
@@ -182,17 +182,17 @@ void pattern5_cloud()
     targetPalette = CRGBPalette16(CloudColors_p);   // max of 4 colors
   }
 
-  LEDS.show();                    // Display the LEDs at every loop cycle.  
+  LEDS.show();                    // Display the LEDs at every loop cycle.
 }
 
 
 void pattern6_lava()
 {
-  // sine variables 
+  // sine variables
   waveA = 3;    // high number more speratic 0-150 default 10
   waveB = .3;   // fast pulse a high number 0-5     default 1
   waveC = 1;    // randomizes sine wave pulse higher number fast 0-80 default 4
-  
+
   EVERY_N_MILLISECONDS(10) {
     nblendPaletteTowardPalette(currentPalette, targetPalette, maxChanges);  // Blend towards the target palette
     fillnoise8();                                                           // Update the LED array with noise at the new location
@@ -202,7 +202,7 @@ void pattern6_lava()
     targetPalette = CRGBPalette16(LavaColors_p); //max of 4 colors
   }
 
-  LEDS.show();                    // Display the LEDs at every loop cycle.  
+  LEDS.show();                    // Display the LEDs at every loop cycle.
 }
 
 
@@ -237,7 +237,7 @@ void setup()
 
   Serial.begin(9600);       // Open serial port to computer
   HC12.begin(9600);         // Open serial port to HC12
- 
+
   //fastled setup
   FastLED.addLeds<CHIPSET, LED_STRIP_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
   FastLED.setBrightness(BRIGHTNESS);
@@ -263,7 +263,7 @@ void loop()
     // Saves the data between the start and end markers.
     if (startBTdata == true) {          // We have received a start marker?
       if (incomingByte != endMarker) {
-        rxBuf += char(incomingByte);   // Add each byte to BTdata string variable
+        rxBuf += char(incomingByte);    // Add the byte to the receive buffer.
       }
       else {                            // We've reached the end marker.
         startBTdata = false;            // Don't save any more characters.
@@ -271,18 +271,18 @@ void loop()
         rxBuf = "";
       }
     }
-    // Checks whether the received message statrs with the start marker.
+    // Checks whether the received message starts with the start marker.
     else if (incomingByte == startMarker) {
       startBTdata = true;               // start saving the message data
     }
   }
-  
+
   // Bluetooth Comm -------------------------------------
   // convert
   // current = BTdata.toInt();
 
-  if (BTdata == "1")      Active = 1;
-  else if (BTdata == "0") Active = 0;
+  if      (BTdata == "0") Active = 0;
+  else if (BTdata == "1") Active = 1;
   else if (BTdata == "2") Active = 2;
   else if (BTdata == "3") Active = 3;
   else if (BTdata == "4") Active = 4;
