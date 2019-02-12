@@ -6,7 +6,7 @@
  * Configuration *
  *****************/
 
-//fastLED 
+//fastLED
 #define LED_STRIP_PIN 3
 #define COLOR_ORDER GRB
 #define CHIPSET WS2812B
@@ -58,7 +58,7 @@ static uint8_t gHue = 0;       // rotating "base color" used by many of the patt
 // OceanColors_p, CloudColors_p, LavaColors_p, ForestColors_p, and PartyColors_p.
 
 
-void addGlitter( fract8 chanceOfGlitter) 
+void addGlitter( fract8 chanceOfGlitter)
 {
   if( random8() < chanceOfGlitter) {
     leds[random16(NUM_LEDS)] += CRGB::White;
@@ -102,7 +102,7 @@ void fillnoiseT()
 
 void pattern0_off()
 {
-  //sine variables 
+  //sine variables
   waveA = 12;   // high number more speratic 0-150 default 10
   waveB = .5;   // fast pulse a high number 0-5     default 1
   waveC = 2;    // randomizes sine wave pulse higher number fast 0-80 default 4
@@ -118,17 +118,17 @@ void pattern0_off()
      targetPalette = CRGBPalette16(CRGB::Black);
   }
 
-  LEDS.show();                    // Display the LEDs at every loop cycle.  
+  LEDS.show();                    // Display the LEDs at every loop cycle.
 }
 
 
 void pattern1_partySparkle()
 {
-  // sine variables 
+  // sine variables
   waveA = 25;   // high number more speratic 0-150 default 10
   waveB = .8;   // fast pulse a high number 0-5     default 1
   waveC = 1;    // randomizes sine wave pulse higher number fast 0-80 default 4
- 
+
   EVERY_N_MILLISECONDS(10) {
     nblendPaletteTowardPalette(currentPalette, targetPalette, maxChanges);  // Blend towards the target palette
     // Update the LED array with noise at the new location
@@ -140,8 +140,8 @@ void pattern1_partySparkle()
   EVERY_N_SECONDS(1) {            // Change the target palette to a random one periodically.
     targetPalette = CRGBPalette16(PartyColors_p);
   }
-  
-  LEDS.show();                    // Display the LEDs at every loop cycle.  
+
+  LEDS.show();                    // Display the LEDs at every loop cycle.
   }
 
 
@@ -154,7 +154,7 @@ void pattern2_singleTrailz()
     leds[pos] += CHSV(gHue, 255, 192);
   }
 
-  LEDS.show();                    // Display the LEDs at every loop cycle.  
+  LEDS.show();                    // Display the LEDs at every loop cycle.
 }
 
 
@@ -163,7 +163,7 @@ void pattern3_rainbowSparkle()
   // FastLED's built-in rainbow generator
   fill_rainbow( leds, NUM_LEDS, gHue, 7);
   addGlitter(20);
-  LEDS.show();                    // Display the LEDs at every loop cycle.  
+  LEDS.show();                    // Display the LEDs at every loop cycle.
 }
 
 
@@ -171,7 +171,7 @@ void pattern4_randomDots()
 {
   leds[randomNumber] += CHSV(gHue, 255, 192);
   fadeToBlackBy(leds, NUM_LEDS, 3);
-  LEDS.show();                    // Display the LED's at every loop cycle. 
+  LEDS.show();                    // Display the LED's at every loop cycle.
   // TODO:  Should this be += or just = ?  Incrementing by CRGB::Black probably doesn't do anything.
   leds[randomNumber] += CRGB::Black;
 }
@@ -179,11 +179,11 @@ void pattern4_randomDots()
 
 void pattern5_lava()
 {
-  // sine variables 
+  // sine variables
   waveA = 3;    // high number more speratic 0-150 default 10
   waveB = .3;   // fast pulse a high number 0-5     default 1
   waveC = 1;    // randomizes sine wave pulse higher number fast 0-80 default 4
-  
+
   EVERY_N_MILLISECONDS(10) {
     nblendPaletteTowardPalette(currentPalette, targetPalette, maxChanges);  // Blend towards the target palette
     // Update the LED array with noise at the new location
@@ -195,7 +195,7 @@ void pattern5_lava()
     targetPalette = CRGBPalette16(LavaColors_p);  // max of 4 colors
   }
 
-  LEDS.show();                    // Display the LEDs at every loop cycle.  
+  LEDS.show();                    // Display the LEDs at every loop cycle.
 }
 
 
@@ -208,17 +208,17 @@ void pattern6_trailzRandom()
     leds[pos] += CHSV(gHue, 255, 192);
   }
   leds[randomNumberT] += CHSV(gHue, 255, 192);
-  LEDS.show();                    // Display the LEDs at every loop cycle.  
+  LEDS.show();                    // Display the LEDs at every loop cycle.
 }
 
 
 void pattern7_lavaTrailzRandom()
 {
-  // sine variables 
+  // sine variables
   waveA = 3;    // high number more speratic 0-150 default 10
   waveB = .3;   // fast pulse a high number 0-5     default 1
   waveC = 10;   // randomizes sine wave pulse higher number fast 0-80 default 4
-  
+
   EVERY_N_MILLISECONDS(10) {
     nblendPaletteTowardPalette(currentPalette, targetPalette, maxChanges);  // Blend towards the target palette
     // Update the LED array with noise at the new location
@@ -236,7 +236,7 @@ void pattern7_lavaTrailzRandom()
     leds[pos] += CHSV(gHue, 255, 192);
   }
   leds[randomNumberT] += CHSV(gHue, 255, 192);
-  LEDS.show();                    // Display the LEDs at every loop cycle.  
+  LEDS.show();                    // Display the LEDs at every loop cycle.
 }
 
 
@@ -252,8 +252,8 @@ void pattern8_multiTrailz()
       dothue += 32;
     }
   }
- 
-  // Show the leds 
+
+  // Show the leds
   FastLED.show();
 }
 
@@ -319,7 +319,7 @@ void loop()
       startBTdata = true;               // start saving the message data
     }
   }
- 
+
   // Bluetooth Comm -------------------------------------
   // convert
   // current = BTdata.toInt();
