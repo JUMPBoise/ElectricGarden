@@ -1,157 +1,118 @@
- 
-//buttons
-const int buttonPinA = A1;
-const int buttonPinB = A2;
-const int buttonPinC = A3;
-const int buttonPinD = A4;
-const int buttonPinE = A5;
-
-//buttons var
-int Index = 0;
-int Middle = 0;
-int Ring = 0;
-int Pinky = 0;
-int Thumb = 0;
-
-int transmit = 0;
-
-char incomingByte;
-String readBuffer = "";
-boolean dataSwitch = false;
-
-String RXdata = "";
-
-
-//BT
-int state =0; //variable for bt comm
-int stateComp;
-long BTappTimer = 0; // tracking App clicks
-long halfMinute =   30000; //milliseconds in a 1/2 minute
-
 #include <SoftwareSerial.h>
-SoftwareSerial HC12(10, 11); // HC-12 TX Pin, HC-12 RX Pin
-void setup() {
+
+
+/*****************
+ * Configuration *
+ *****************/
+
+#define HC12_TX_TO_ARDUINO_RX_PIN 10
+#define HC12_RX_FROM_ARDUINO_TX_PIN 11
+
+// buttons
+static const int buttonPinA = A1;
+static const int buttonPinB = A2;
+static const int buttonPinC = A3;
+static const int buttonPinD = A4;
+static const int buttonPinE = A5;
+
+// Use this when the buttons are active high.  Active high means that the pin is
+// put in a high state when the button is pushed.  That is the case when the
+// button's switch is the normally open type, one side of the switch is connected
+// to the Arduino's pin, and the other side is connected to Vcc (5 V or 3.3. V).
+#define BUTTON_PUSHED HIGH;
+
+// Use this when the buttons are active low.  Active low means that the pin is
+// put in a low state when the button is pushed.  That is the case when the
+// button's switch is the normally open type, one side of the switch is connected
+// to the Arduino's pin, and the other side is connected to ground.  An advantage
+// of active low is that the Arduino's internal pullup can be used to pull the
+// pin high when the button is not pushed, eliminating the need for an external
+// pullup resistor (for active low) or pulldown resistor (for active high).
+//#define BUTTON_PUSHED LOW;
+
+// Enable this #define if we need the internal pullups.
+//#define ENABLE_INTERNAL_PULLUPS
+
+// retransmitIntervalMs limits how often we will transmit a state value.
+static const uint32_t retransmitIntervalMs = 500;
+
+
+/***********
+ * Globals *
+ ***********/
+
+static SoftwareSerial HC12(HC12_TX_TO_ARDUINO_RX_PIN, HC12_RX_FROM_ARDUINO_TX_PIN);
+
+
+/**********************
+ * Setup and Run Loop *
+ **********************/
+
+void setup()
+{
   Serial.begin(9600);             // Serial port to computer
   HC12.begin(9600);               // Serial port to HC12
 
-//buttons
-pinMode(buttonPinA, INPUT);
-pinMode(buttonPinB, INPUT);
-pinMode(buttonPinC, INPUT);
-pinMode(buttonPinD, INPUT);
-pinMode(buttonPinE, INPUT);
+  // Configure the button pins as inputs.
+  pinMode(buttonPinA, INPUT);
+  pinMode(buttonPinB, INPUT);
+  pinMode(buttonPinC, INPUT);
+  pinMode(buttonPinD, INPUT);
+  pinMode(buttonPinE, INPUT);
 
-
-
-
-
-  
-}
-void loop() {
- 
-//if(Serial.available()){state = Serial.read(); }
-
-//button scramble
-     if (Thumb == 0 && Index == 0 && Middle == 0 && Ring == 0 && Pinky == 0 ) {state = 86;} // send no signal
-else if (Thumb == 1 && Index == 0 && Middle == 0 && Ring == 0 && Pinky == 0 ) {state = 86;} // send no signal
-else if (Thumb == 1 && Index == 1 && Middle == 0 && Ring == 0 && Pinky == 0 ) {state = 1;} // send state
-else if (Thumb == 1 && Index == 0 && Middle == 1 && Ring == 0 && Pinky == 0 ) {state = 2;} // send state
-else if (Thumb == 1 && Index == 0 && Middle == 0 && Ring == 1 && Pinky == 0 ) {state = 3;} // send state
-else if (Thumb == 1 && Index == 0 && Middle == 0 && Ring == 0 && Pinky == 1 ) {state = 4;} // send state
-else if (Thumb == 0 && Index == 1 && Middle == 0 && Ring == 0 && Pinky == 0 ) {state = 5;} // send state
-else if (Thumb == 0 && Index == 0 && Middle == 1 && Ring == 0 && Pinky == 0 ) {state = 6;} // send state
-else if (Thumb == 0 && Index == 0 && Middle == 0 && Ring == 1 && Pinky == 0 ) {state = 7;} // send state
-else if (Thumb == 0 && Index == 0 && Middle == 0 && Ring == 0 && Pinky == 1 ) {state = 8;} // send state
-else if (Thumb == 1 && Index == 1 && Middle == 1 && Ring == 1 && Pinky == 1 ) {state = 0;} // send state  off
-else if (Thumb == 0 && Index == 1 && Middle == 1 && Ring == 1 && Pinky == 1 ) {state = 0;} // send state  off
-
-
-// read buttons
-Index = digitalRead(buttonPinE);
-Middle = digitalRead(buttonPinD);
-Ring = digitalRead(buttonPinC);
-Pinky = digitalRead(buttonPinB);
-Thumb = digitalRead(buttonPinA);
-
-/*
-Serial.println(Index);
-Serial.println(Middle);
-Serial.println(Ring);
-Serial.println(Pinky);
-Serial.println(Thumb);
-Serial.println();
-*/
-
-
-
-//if (state ==1){ transmit =1;}
-//else if (state ==0){ transmit =0;}
-
-
-if (state==1){ 
-   HC12.print("^"); 
-   HC12.print("1"); 
-   HC12.print("%");
-   delay(20);
-}
-else if (state==0){ 
-   HC12.print("^"); 
-   HC12.print("0"); 
-   HC12.print("%");
-   delay(20);
-}
-else if (state==2){ 
-   HC12.print("^"); 
-   HC12.print("2"); 
-   HC12.print("%");
-   delay(20);
-}
-else if (state==3){ 
-   HC12.print("^"); 
-   HC12.print("3"); 
-   HC12.print("%");
-   delay(20);
-}
-else if (state==4){ 
-   HC12.print("^"); 
-   HC12.print("4"); 
-   HC12.print("%");
-   delay(20);
-}
-else if (state==5){ 
-   HC12.print("^"); 
-   HC12.print("5"); 
-   HC12.print("%");
-   delay(20);
-}
-else if (state==6){ 
-   HC12.print("^"); 
-   HC12.print("6"); 
-   HC12.print("%");
-   delay(20);
-}
-else if (state==7){ 
-   HC12.print("^"); 
-   HC12.print("7"); 
-   HC12.print("%");
-   delay(20);
-}
-else if (state==8){ 
-   HC12.print("^"); 
-   HC12.print("8"); 
-   HC12.print("%");
-   delay(20);
-}
-Serial.println(state);
-//Serial.println(transmit);
-delay(500);
-//transmit =0;
-state = 86; //send no signal
+#ifdef ENABLE_INTERNAL_PULLUPS
+  digitalWrite(buttonPinA, HIGH);
+  digitalWrite(buttonPinB, HIGH);
+  digitalWrite(buttonPinC, HIGH);
+  digitalWrite(buttonPinD, HIGH);
+  digitalWrite(buttonPinE, HIGH);
+#endif
 }
 
 
+void loop()
+{
+  static uint32_t lastTxMs;
 
+  // read buttons
+  // TODO ross 10 Feb. 2019:  we should do debouncing so that we don't sporadically transmit the wrong state values
+  int Index = digitalRead(buttonPinE) == BUTTON_PUSHED;
+  int Middle = digitalRead(buttonPinD) == BUTTON_PUSHED;
+  int Ring = digitalRead(buttonPinC) == BUTTON_PUSHED;
+  int Pinky = digitalRead(buttonPinB) == BUTTON_PUSHED;
+  int Thumb = digitalRead(buttonPinA) == BUTTON_PUSHED;
 
+  /*
+  Serial.println(Index);
+  Serial.println(Middle);
+  Serial.println(Ring);
+  Serial.println(Pinky);
+  Serial.println(Thumb);
+  Serial.println();
+  */
 
+  //button scramble
+  int state;        // this is the value representing a pattern number that we send to the receiver side
+       if (Thumb == 1 && Index == 1 && Middle == 0 && Ring == 0 && Pinky == 0) state = 1;
+  else if (Thumb == 1 && Index == 0 && Middle == 1 && Ring == 0 && Pinky == 0) state = 2;
+  else if (Thumb == 1 && Index == 0 && Middle == 0 && Ring == 1 && Pinky == 0) state = 3;
+  else if (Thumb == 1 && Index == 0 && Middle == 0 && Ring == 0 && Pinky == 1) state = 4;
+  else if (Thumb == 0 && Index == 1 && Middle == 0 && Ring == 0 && Pinky == 0) state = 5;
+  else if (Thumb == 0 && Index == 0 && Middle == 1 && Ring == 0 && Pinky == 0) state = 6;
+  else if (Thumb == 0 && Index == 0 && Middle == 0 && Ring == 1 && Pinky == 0) state = 7;
+  else if (Thumb == 0 && Index == 0 && Middle == 0 && Ring == 0 && Pinky == 1) state = 8;
+  else if (              Index == 1 && Middle == 1 && Ring == 1 && Pinky == 1) state = 0;   // turn pattern off
+  else                                                                         state = 86;  // send no signal
 
+  uint32_t now = millis();
+  if (state >= 0 && state <= 8 && now - lastTxMs >= retransmitIntervalMs) {     // state is valid and should be (re)sent?
+    lastTxMs = now;
+
+    HC12.print("^"); 
+    HC12.print(state); 
+    HC12.print("%");
+
+    Serial.println(state);
+  }
+}
 
