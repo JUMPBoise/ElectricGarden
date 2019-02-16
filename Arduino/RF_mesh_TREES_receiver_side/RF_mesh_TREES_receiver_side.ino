@@ -1,6 +1,8 @@
 #include <FastLED.h>
 #include <SoftwareSerial.h>
 
+#define ROSS_DEVL
+
 
 /*****************
  * Configuration *
@@ -10,17 +12,27 @@
 #define LED_STRIP_PIN 3
 #define COLOR_ORDER GRB
 #define CHIPSET WS2812B
+#ifndef ROSS_DEVL
+// LED counts for trees
 #define NUM_LEDS 300
 #define NUM_LEDS_IN_BOTTOM_PART 150
+#else
+// LED counts for Ross's development board
+#define NUM_LEDS 50
+#define NUM_LEDS_IN_BOTTOM_PART 25
+#endif
 #define BRIGHTNESS 200
 #define FRAMES_PER_SECOND 30
 
+#ifndef ROSS_DEVL
 // HC-12 configuration for JUMP
 #define HC12_TX_TO_ARDUINO_RX_PIN 10
 #define HC12_RX_FROM_ARDUINO_TX_PIN 11
+#else
 // HC-12 configuration for Ross'd development board
-//#define HC12_TX_TO_ARDUINO_RX_PIN 2
-//#define HC12_RX_FROM_ARDUINO_TX_PIN 4
+#define HC12_TX_TO_ARDUINO_RX_PIN 2
+#define HC12_RX_FROM_ARDUINO_TX_PIN 4
+#endif
 
 
 /***********

@@ -1,14 +1,20 @@
 #include <SoftwareSerial.h>
 
+#define ROSS_DEVL
+
 
 /*****************
  * Configuration *
  *****************/
 
+// HC-12 configuration for JUMP
 #define HC12_TX_TO_ARDUINO_RX_PIN 10
 #define HC12_RX_FROM_ARDUINO_TX_PIN 11
 
-// buttons
+#ifndef ROSS_DEVL
+
+// ----- button configuration for JUMP -----
+
 static const int buttonPinA = A1;
 static const int buttonPinB = A2;
 static const int buttonPinC = A3;
@@ -21,6 +27,16 @@ static const int buttonPinE = A5;
 // to the Arduino's pin, and the other side is connected to Vcc (5 V or 3.3. V).
 #define BUTTON_PUSHED HIGH;
 
+#else
+
+// ----- button configuration for Ross's development board -----
+
+static const int buttonPinA = 2;
+static const int buttonPinB = 3;
+static const int buttonPinC = 4;
+static const int buttonPinD = 5;
+static const int buttonPinE = 6;
+
 // Use this when the buttons are active low.  Active low means that the pin is
 // put in a low state when the button is pushed.  That is the case when the
 // button's switch is the normally open type, one side of the switch is connected
@@ -28,10 +44,12 @@ static const int buttonPinE = A5;
 // of active low is that the Arduino's internal pullup can be used to pull the
 // pin high when the button is not pushed, eliminating the need for an external
 // pullup resistor (for active low) or pulldown resistor (for active high).
-//#define BUTTON_PUSHED LOW;
+#define BUTTON_PUSHED LOW;
 
 // Enable this #define if we need the internal pullups.
-//#define ENABLE_INTERNAL_PULLUPS
+#define ENABLE_INTERNAL_PULLUPS
+
+#endif
 
 // retransmitIntervalMs limits how often we will transmit a state value.
 static const uint32_t retransmitIntervalMs = 500;
