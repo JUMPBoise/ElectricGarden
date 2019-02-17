@@ -362,12 +362,12 @@ void loop()
   const byte rxBufSize = 3;
 
   static int Active;
-  static int State = 1;                   // the current pattern being displayed (or 86 if none)
-  static MsgType rxMsgType = MsgType::none;      // the type of message being received but not complete yet
-  static MsgType msgType = MsgType::none;        // the type of complete message currently in rxBuf and needing to be processed
-  static byte rxBuf[rxBufSize];           // holds received data until we have a complete message
-  static byte rxBufLen;                   // index of the next slot to fill in rxBuf and also the number of bytes in the buffer
-  static boolean gotStartMarker = false;  // gets set true when we receive any start marker
+  static int State = 1;                     // the current pattern being displayed (or 86 if none)
+  static MsgType rxMsgType = MsgType::none; // the type of message being received but not complete yet
+  static MsgType msgType = MsgType::none;   // the type of complete message currently in rxBuf and needing to be processed
+  static byte rxBuf[rxBufSize];             // holds received data until we have a complete message
+  static byte rxBufLen;                     // index of the next slot to fill in rxBuf and also the number of bytes in the buffer
+  static boolean gotStartMarker = false;    // gets set true when we receive any start marker
 
 //  // for cylcing the code without the controller
 //  static long timer = 60000;
@@ -381,7 +381,9 @@ void loop()
 //    }
 //  }
 
-  while (HC12.available()) {                    // If HC-12 has data
+  // Process data received by the HC-12 until it has
+  // no more data or until we have a complete message.
+  while (HC12.available() && msgType == MsgType::none) {
     byte incomingByte = HC12.read();            // get an incoming byte from HC-12
     Serial.print("0x");
     Serial.println(incomingByte, HEX);
@@ -418,6 +420,7 @@ void loop()
 delay(6);   // TODO:  hack to give SoftwareSerial a chance to receive before FastLED hogs all the cycles without interrupts enabled
 
   if (msgType == MsgType::button) {
+    msgType = MsgType::none;                    // Indicate that the message has been handled.
 
     // Bluetooth Comm -------------------------------------
     // convert
@@ -436,9 +439,6 @@ delay(6);   // TODO:  hack to give SoftwareSerial a chance to receive before Fas
     else if (msgData == '8') Active = 8;
     else Active = 86;
 
-    // We're finished with the current message.
-    msgType = MsgType::none;
-
     // Change the state (pattern) if the message told us to do so.
     if (Active < 80) {
       State = Active;
@@ -454,18 +454,15 @@ delay(6);   // TODO:  hack to give SoftwareSerial a chance to receive before Fas
 
   // Process a bender message.
   if (msgType == MsgType::bender) {
-    if (rxBufLen == NUM_BENDERS) {                    // accept only complete bender messages
+    msgType = MsgType::none;                    // Indicate that the message has been handled.
+    if (rxBufLen == NUM_BENDERS) {              // accept only complete bender messages
       // Valid bender values are 0 - 127 but are transmitted with the high-order bit
       // set so that they are not confused with message start or end characters.
       // If the high-order bit isn't set, we'll ignore the value because it is probably
       // junk.  Otherwise, we'll clear the high-order bit and save the bender value.
       for (byte i = 0; i < NUM_BENDERS; ++i) {
-        //Serial.print("rxBuf[");
-        //Serial.print(i);
-        //Serial.print("]=");
-        //Serial.println(rxBuf[i]);
-        if (rxBuf[i] & 0x80) {                        // high-order bit is set?
-          benders[i] = rxBuf[i] & 0x7f;               // keep only lower 7 bits
+        if (rxBuf[i] & 0x80) {                  // high-order bit is set (byte is probably a valid bender value)?
+          benders[i] = rxBuf[i] & 0x7f;         // keep only lower 7 bits (0 - 127)
           Serial.print("benders[");
           Serial.print(i);
           Serial.print("]=");
@@ -473,8 +470,6 @@ delay(6);   // TODO:  hack to give SoftwareSerial a chance to receive before Fas
         }
       }
     }
-    // We're finished with the current message.
-    msgType = MsgType::none;
   }
 
   randomNumber = random(0, NUM_LEDS);                         // random number generator for entire tree
