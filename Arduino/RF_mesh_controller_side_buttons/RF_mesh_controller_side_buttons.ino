@@ -2,6 +2,8 @@
 
 #define ROSS_DEVL
 
+#define HAS_BENDER_KNOBS
+
 
 /*****************
  * Configuration *
@@ -54,6 +56,17 @@ static const int buttonPinE = 6;
 // retransmitIntervalMs limits how often we will transmit a state value.
 static const uint32_t retransmitIntervalMs = 500;
 
+#ifdef HAS_BENDER_KNOBS
+
+#define POT1_APIN A0
+#define POT2_APIN A1
+#define POT3_APIN A2
+
+// benderRetransmitIntervalMs controls how often we will transmit the bender knob values.
+static const uint32_t benderRetransmitIntervalMs = 2000;
+
+#endif
+
 
 /***********
  * Globals *
@@ -85,12 +98,58 @@ void setup()
   digitalWrite(buttonPinD, HIGH);
   digitalWrite(buttonPinE, HIGH);
 #endif
+
+#ifdef HAS_BENDER_KNOBS
+  pinMode(POT1_APIN, INPUT);
+  pinMode(POT2_APIN, INPUT);
+  pinMode(POT3_APIN, INPUT);
+#endif
 }
+
+
+#ifdef HAS_BENDER_KNOBS
+void readAndSendBenderValues(uint32_t now)
+{
+  static uint32_t lastBenderTxMs;
+
+  if (now - lastBenderTxMs >= benderRetransmitIntervalMs) {     // state is valid and should be (re)sent?
+    lastBenderTxMs = now;
+
+    // We right shift the ADC values by 3 bits to essentially divide them by 8, thus
+    // giving a range of 0 to 127 (instead of 0 - 1023).  We have to do this because
+    // we can use only 7 bits for each bender value.
+    byte bender1 = analogRead(POT1_APIN) >> 3;
+    byte bender2 = analogRead(POT2_APIN) >> 3;
+    byte bender3 = analogRead(POT3_APIN) >> 3;
+
+    // Turn on the high-order bit of each bender value so that they
+    // don't get misinterpreted as framing (start or stop) characters.
+    bender1 |= 0x80;
+    bender2 |= 0x80;
+    bender3 |= 0x80;
+
+    HC12.write(0x26);       // & - bender message start marker
+    HC12.write(bender1);
+    HC12.write(bender2);
+    HC12.write(bender3);
+    HC12.write(0x25);       // % - message end marker
+
+    Serial.print("bender1=");
+    Serial.print((int) bender1);
+    Serial.print(" bender2=");
+    Serial.print((int) bender2);
+    Serial.print(" bender3=");
+    Serial.println((int) bender3);
+  }
+}
+#endif
 
 
 void loop()
 {
   static uint32_t lastTxMs;
+
+  uint32_t now = millis();
 
   // read buttons
   // TODO ross 10 Feb. 2019:  we should do debouncing so that we don't sporadically transmit the wrong state values
@@ -122,15 +181,18 @@ void loop()
   else if (              Index == 1 && Middle == 1 && Ring == 1 && Pinky == 1) state = 0;   // turn pattern off
   else                                                                         state = 86;  // send no signal
 
-  uint32_t now = millis();
   if (state >= 0 && state <= 8 && now - lastTxMs >= retransmitIntervalMs) {     // state is valid and should be (re)sent?
     lastTxMs = now;
 
-    HC12.print("^"); 
-    HC12.print(state); 
+    HC12.print("^");
+    HC12.print(state);
     HC12.print("%");
 
     Serial.println(state);
   }
+
+#ifdef HAS_BENDER_KNOBS
+  readAndSendBenderValues(now);
+#endif
 }
 
