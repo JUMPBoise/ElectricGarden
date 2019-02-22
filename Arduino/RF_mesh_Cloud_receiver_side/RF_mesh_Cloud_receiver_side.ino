@@ -42,6 +42,8 @@ static CRGBPalette16 targetPalette(PartyColors_p);
 
 static SoftwareSerial HC12(HC12_TX_TO_ARDUINO_RX_PIN, HC12_RX_FROM_ARDUINO_TX_PIN);
 
+static uint8_t gHue = 0;       // rotating "base color" used by many of the patterns
+
 
 /************
  * Patterns *
@@ -49,6 +51,26 @@ static SoftwareSerial HC12(HC12_TX_TO_ARDUINO_RX_PIN, HC12_RX_FROM_ARDUINO_TX_PI
 
 // FastLED provides several 'preset' palettes: RainbowColors_p, RainbowStripeColors_p,
 // OceanColors_p, CloudColors_p, LavaColors_p, ForestColors_p, and PartyColors_p.
+
+void addGlitter(fract8 chanceOfGlitter)
+{
+  if(random8() < chanceOfGlitter) {
+    leds[random16(NUM_LEDS)] += CRGB::White;
+  }
+}
+
+void addRed(fract8 chanceOfGlitter)
+{
+  if(random8() < chanceOfGlitter) {
+    leds[random16(NUM_LEDS)] += CHSV(0, 255, 192);
+  }
+}
+void addPink(fract8 chanceOfGlitter)
+{
+  if(random8() < chanceOfGlitter) {
+    leds[random16(NUM_LEDS)] += CHSV(224, 255, 192);
+  }
+}
 
 // ---------- Noise Generator1 ----------
 void fillnoise8()
@@ -86,22 +108,11 @@ void pattern0_off()
 }
 
 
-void pattern1_walkIn()
+void pattern1_rainbowSparkle()
 {
-  // sine variables
-  waveA = 12;   // high number more speratic 0-150 default 10
-  waveB = .5;   // fast pulse a high number 0-5     default 1
-  waveC = 2;    // randomizes sine wave pulse higher number fast 0-80 default 4
-
-  EVERY_N_MILLISECONDS(10) {
-    nblendPaletteTowardPalette(currentPalette, targetPalette, maxChanges);  // Blend towards the target palette
-    fillnoise8();                                                           // Update the LED array with noise at the new location
-  }
-
-  EVERY_N_SECONDS(1) {             // Change the target palette to a random one periodically.
-     targetPalette = CRGBPalette16(RainbowColors_p);
-  }
-
+  // FastLED's built-in rainbow generator
+  fill_rainbow(leds, NUM_LEDS, gHue, 7);
+  addGlitter(20);
   LEDS.show();                    // Display the LEDs at every loop cycle.
 }
 
@@ -139,7 +150,7 @@ void pattern3_rainbowStripe()
   }
 
   EVERY_N_SECONDS(1) {             // Change the target palette to a random one periodically.
-     targetPalette = CRGBPalette16(RainbowStripeColors_p);
+     targetPalette = CRGBPalette16(RainbowColors_p);
   }
 
   LEDS.show();                    // Display the LEDs at every loop cycle.
@@ -206,6 +217,44 @@ void pattern6_lava()
 }
 
 
+void pattern7_pinky()
+{
+  // sine variables
+  waveA = 3;    // high number more speratic 0-150 default 10
+  waveB = .3;   // fast pulse a high number 0-5     default 1
+  waveC = 1;    // randomizes sine wave pulse higher number fast 0-80 default 4
+
+  EVERY_N_MILLISECONDS(10) {
+    nblendPaletteTowardPalette(currentPalette, targetPalette, maxChanges);  // Blend towards the target palette
+    // Update the LED array with noise at the new location
+   // fillnoiseT();
+   // fillnoiseB();
+    addRed(30);
+    addPink(60);
+    addGlitter(25);
+    fadeToBlackBy(leds, NUM_LEDS, 10);
+  }
+
+  EVERY_N_SECONDS(1) {            // Change the target palette to a random one periodically.
+    targetPalette = CRGBPalette16(LavaColors_p);  // max of 4 colors
+  }
+
+  LEDS.show();                    // Display the LEDs at every loop cycle.
+}
+
+void pattern8_singleTrailz()
+{
+  // a colored dot sweeping back and forth, with fading trails
+  fadeToBlackBy(leds, NUM_LEDS, 30);
+  unsigned int pos = beatsin16(30, 0, NUM_LEDS - 1);    // (speed, firstled, lastled)
+  if (pos < NUM_LEDS) {           // it should always be in bounds, but defensive programming is a good thing
+    leds[pos] += CHSV(gHue, 255, 192);
+  }
+
+  LEDS.show();                    // Display the LEDs at every loop cycle.
+}
+
+
 bool pattern15_startup()
 {
   static unsigned int dot = 0;
@@ -249,7 +298,7 @@ void setup()
 void loop()
 {
   static int Active;
-  static int State = 15;    // the current pattern being displayed (or 86 if none)
+  static int State = 1;    // the current pattern being displayed (or 86 if none)
   static String rxBuf;      // holds received data until we have a complete message
 
   // variables for activating if loop for parsing data
@@ -305,21 +354,26 @@ void loop()
   Serial.print(" State=");
   Serial.println(State);
 
+    // slowly cycle the "base color" through the rainbow
+  EVERY_N_MILLISECONDS(20) {
+    gHue++;
+  }
+
   switch (State) {
     case 0:
       pattern0_off();
       break;
     case 1:
-      pattern1_walkIn();
+      pattern1_rainbowSparkle();
       break;
     case 2:
-      pattern2_ocean();
-      break;
-    case 3:
       pattern3_rainbowStripe();
       break;
+    case 3:
+    pattern4_party();
+      break;
     case 4:
-      pattern4_party();
+      pattern2_ocean();
       break;
     case 5:
       pattern5_cloud();
@@ -327,9 +381,14 @@ void loop()
     case 6:
       pattern6_lava();
       break;
-    // TODO ross 11 Feb. 2019:  If patterns 7 and 8 are enabled for the trees, do we need to assign cloud patterns for 7 and 8 here
-    //                          (and handle 7 and 8 the "if BTdata" stuff above)?  If we don't, whatever pattern happens to be
-    //                          active on the clouds at the moment the trees switch to 7 or 8 will remain active on the clouds.
+    case 7:
+      pattern7_pinky();
+      break;
+    case 8:
+      pattern8_singleTrailz();
+      break;
+
+
     case 15:
       // When pattern 15 is finished, switch to pattern 5.
       if (!pattern15_startup()) {

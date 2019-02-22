@@ -65,6 +65,20 @@ void addGlitter(fract8 chanceOfGlitter)
   }
 }
 
+void addRed(fract8 chanceOfGlitter)
+{
+  if(random8() < chanceOfGlitter) {
+    leds[random16(NUM_LEDS)] += CHSV(0, 255, 192);
+  }
+}
+
+void addBlue(fract8 chanceOfGlitter)
+{
+  if(random8() < chanceOfGlitter) {
+    leds[random16(NUM_LEDS)] += CHSV(160, 255, 192);
+  }
+}
+
 
 // ---------- Noise Generator1 (for bottom part of tree) ----------
 void fillnoiseB()
@@ -188,7 +202,10 @@ void pattern5_lava()
     nblendPaletteTowardPalette(currentPalette, targetPalette, maxChanges);  // Blend towards the target palette
     // Update the LED array with noise at the new location
     fillnoiseT();
-    fillnoiseB();
+   // fillnoiseB();
+    addRed(30);
+    addGlitter(10);
+    fadeToBlackBy(leds, NUM_LEDS, 60);
   }
 
   EVERY_N_SECONDS(1) {            // Change the target palette to a random one periodically.
@@ -215,9 +232,9 @@ void pattern6_trailzRandom()
 void pattern7_lavaTrailzRandom()
 {
   // sine variables
-  waveA = 3;    // high number more speratic 0-150 default 10
-  waveB = .3;   // fast pulse a high number 0-5     default 1
-  waveC = 10;   // randomizes sine wave pulse higher number fast 0-80 default 4
+  waveA = 60;    // high number more speratic 0-150 default 10
+  waveB = 1;   // fast pulse a high number 0-5     default 1
+  waveC = 4;   // randomizes sine wave pulse higher number fast 0-80 default 4
 
   EVERY_N_MILLISECONDS(10) {
     nblendPaletteTowardPalette(currentPalette, targetPalette, maxChanges);  // Blend towards the target palette
@@ -226,7 +243,8 @@ void pattern7_lavaTrailzRandom()
   }
 
   EVERY_N_SECONDS(1) {             // Change the target palette to a random one periodically.
-    targetPalette = CRGBPalette16(LavaColors_p);  //max of 4 colors
+    targetPalette = CRGBPalette16(CHSV(192, 255, 192), CHSV(224, 255, 192), CHSV(250, 255, 192));  //max of 4 colors
+    
   }
 
   // a colored dot sweeping back and forth, with fading trails
@@ -365,28 +383,28 @@ void loop()
       pattern0_off();
       break;
     case 1:
-      pattern1_partySparkle();
+    pattern3_rainbowSparkle();
       break;
     case 2:
-      pattern2_singleTrailz();
+      pattern1_partySparkle();
       break;
     case 3:
-      pattern3_rainbowSparkle();
+      pattern2_singleTrailz();
       break;
     case 4:
       pattern4_randomDots();
       break;
     case 5:
-      pattern5_lava();
+      pattern8_multiTrailz();
       break;
     case 6:
-      pattern6_trailzRandom();
+      pattern5_lava();
       break;
     case 7:
       pattern7_lavaTrailzRandom();
       break;
     case 8:
-      pattern8_multiTrailz();
+    pattern6_trailzRandom();
       break;
     //default:
       // TODO ross 11 Feb 2018:  We should indicate an internal error somehow if State is invalid.
