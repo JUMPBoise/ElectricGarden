@@ -326,6 +326,8 @@ void loop()
   else if (BTdata == "4") Active = 4;
   else if (BTdata == "5") Active = 5;
   else if (BTdata == "6") Active = 6;
+  else if (BTdata == "7") Active = 7;
+  else if (BTdata == "8") Active = 8;
   else if (BTdata == "")  Active = 86;
 
   // We're finished with the current message, so clear it.
