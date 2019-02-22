@@ -12,7 +12,12 @@
 #define CHIPSET WS2812B
 #define NUM_LEDS 300
 #define BRIGHTNESS 255
-#define FRAMES_PER_SECOND 30
+
+// timing
+#define LED_FRAMES_PER_SECOND 24
+#define PATTERN_UPDATE_INTERVAL_MS 30
+#define HUE_STEP_INTERVAL_MS 20
+#define PALETTE_BLEND_INTERVAL_MS 10
 
 // HC-12 configuration for JUMP
 #define HC12_TX_TO_ARDUINO_RX_PIN 10
@@ -103,8 +108,6 @@ void pattern0_off()
 
   EVERY_N_SECONDS(1) {             // Change the target palette to a random one periodically.
      targetPalette = CRGBPalette16(CRGB::Black); }
-
-  LEDS.show();                    // Display the LEDs at every loop cycle.
 }
 
 
@@ -113,7 +116,6 @@ void pattern1_rainbowSparkle()
   // FastLED's built-in rainbow generator
   fill_rainbow(leds, NUM_LEDS, gHue, 7);
   addGlitter(20);
-  LEDS.show();                    // Display the LEDs at every loop cycle.
 }
 
 
@@ -132,8 +134,6 @@ void pattern2_ocean()
   EVERY_N_SECONDS(1) {             // Change the target palette to a random one periodically.
      targetPalette = CRGBPalette16(OceanColors_p);
   }
-
-  LEDS.show();                    // Display the LEDs at every loop cycle.
 }
 
 
@@ -152,8 +152,6 @@ void pattern3_rainbowStripe()
   EVERY_N_SECONDS(1) {             // Change the target palette to a random one periodically.
      targetPalette = CRGBPalette16(RainbowColors_p);
   }
-
-  LEDS.show();                    // Display the LEDs at every loop cycle.
 }
 
 
@@ -172,8 +170,6 @@ void pattern4_party()
   EVERY_N_SECONDS(1) {             // Change the target palette to a random one periodically.
     targetPalette = CRGBPalette16(PartyColors_p);   // max of 4 colors
  }
-
-  LEDS.show();                    // Display the LEDs at every loop cycle.
 }
 
 
@@ -192,8 +188,6 @@ void pattern5_cloud()
   EVERY_N_SECONDS(1) {             // Change the target palette to a random one periodically.
     targetPalette = CRGBPalette16(CloudColors_p);   // max of 4 colors
   }
-
-  LEDS.show();                    // Display the LEDs at every loop cycle.
 }
 
 
@@ -212,8 +206,6 @@ void pattern6_lava()
   EVERY_N_SECONDS(1) {             // Change the target palette to a random one periodically.
     targetPalette = CRGBPalette16(LavaColors_p); //max of 4 colors
   }
-
-  LEDS.show();                    // Display the LEDs at every loop cycle.
 }
 
 
@@ -238,8 +230,6 @@ void pattern7_pinky()
   EVERY_N_SECONDS(1) {            // Change the target palette to a random one periodically.
     targetPalette = CRGBPalette16(LavaColors_p);  // max of 4 colors
   }
-
-  LEDS.show();                    // Display the LEDs at every loop cycle.
 }
 
 void pattern8_singleTrailz()
@@ -250,20 +240,19 @@ void pattern8_singleTrailz()
   if (pos < NUM_LEDS) {           // it should always be in bounds, but defensive programming is a good thing
     leds[pos] += CHSV(gHue, 255, 192);
   }
-
-  LEDS.show();                    // Display the LEDs at every loop cycle.
 }
 
 
 bool pattern15_startup()
 {
   static unsigned int dot = 0;
-
+  
   EVERY_N_MILLISECONDS(30) {
+    if (dot > 0) {
+      // clear the led we turned on last time
+      leds[dot - 1] = CRGB::Black;
+    }
     leds[dot] = CRGB::Blue;
-    FastLED.show();
-    // clear this led for the next time around the loop
-    leds[dot] = CRGB::Black;
     ++dot;
   }
 
@@ -298,17 +287,17 @@ void setup()
 void loop()
 {
   static int Active;
-  static int State = 1;    // the current pattern being displayed (or 86 if none)
-  static String rxBuf;      // holds received data until we have a complete message
+  static int State = 1;       // the current pattern being displayed (or 86 if none)
+  static boolean startBTdata; // gets set true when we receive a start marker
+  static String rxBuf;        // holds received data until we have a complete message
 
   // variables for activating if loop for parsing data
   const byte startMarker = '^';
   const byte endMarker = '%';
-  boolean startBTdata = false;          // gets set true when we receive a start marker
   String BTdata = "";                   // if not empty, contains a complete message
   // ==== Storing the incoming data into a String variable
   while (HC12.available()) {            // If HC-12 has data
-    byte incomingByte = HC12.read();    // get each incoming byte from HC-12
+    byte incomingByte = HC12.read();    // get an incoming byte from HC-12
     // Saves the data between the start and end markers.
     if (startBTdata == true) {          // We have received a start marker?
       if (incomingByte != endMarker) {
@@ -345,58 +334,64 @@ void loop()
   // Change the state (pattern) if the message told us to do so.
   if (Active < 80) {
     State = Active;
+    Serial.print("BTdata=");
+    Serial.print(BTdata);
+    Serial.print(" Active=");
+    Serial.print(Active);
+    Serial.print(" State=");
+    Serial.println(State);
   }
 
-  Serial.print("BTdata=");
-  Serial.print(BTdata);
-  Serial.print(" Active=");
-  Serial.print(Active);
-  Serial.print(" State=");
-  Serial.println(State);
-
-    // slowly cycle the "base color" through the rainbow
-  EVERY_N_MILLISECONDS(20) {
+  // slowly cycle the "base color" through the rainbow
+  EVERY_N_MILLISECONDS(HUE_STEP_INTERVAL_MS) {
     gHue++;
   }
 
-  switch (State) {
-    case 0:
-      pattern0_off();
-      break;
-    case 1:
-      pattern1_rainbowSparkle();
-      break;
-    case 2:
-      pattern3_rainbowStripe();
-      break;
-    case 3:
-    pattern4_party();
-      break;
-    case 4:
-      pattern2_ocean();
-      break;
-    case 5:
-      pattern5_cloud();
-      break;
-    case 6:
-      pattern6_lava();
-      break;
-    case 7:
-      pattern7_pinky();
-      break;
-    case 8:
-      pattern8_singleTrailz();
-      break;
+  // Periodically update the patterns.
+  EVERY_N_MILLISECONDS(PATTERN_UPDATE_INTERVAL_MS) {
 
+    switch (State) {
+      case 0:
+        pattern0_off();
+        break;
+      case 1:
+        pattern1_rainbowSparkle();
+        break;
+      case 2:
+        pattern3_rainbowStripe();
+        break;
+      case 3:
+      pattern4_party();
+        break;
+      case 4:
+        pattern2_ocean();
+        break;
+      case 5:
+        pattern5_cloud();
+        break;
+      case 6:
+        pattern6_lava();
+        break;
+      case 7:
+        pattern7_pinky();
+        break;
+      case 8:
+        pattern8_singleTrailz();
+        break;
+      case 15:
+        // When pattern 15 is finished, switch to pattern 5.
+        if (!pattern15_startup()) {
+          State = 5;
+        }
+        break;
+      //default:
+        // TODO ross 9 Feb 2018:  We should indicate an internal error somehow if State is invalid.
+    }
+  }
 
-    case 15:
-      // When pattern 15 is finished, switch to pattern 5.
-      if (!pattern15_startup()) {
-        State = 5;
-      }
-      break;
-    //default:
-      // TODO ross 9 Feb 2018:  We should indicate an internal error somehow if State is invalid.
+  // Write to the LEDs approximately LED_FRAMES_PER_SECOND times per second.
+  EVERY_N_MILLISECONDS(1000 / LED_FRAMES_PER_SECOND) {
+    LEDS.show();
   }
 }
 
