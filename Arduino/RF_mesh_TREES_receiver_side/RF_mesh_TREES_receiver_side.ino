@@ -21,11 +21,11 @@
 #define PALETTE_BLEND_INTERVAL_MS 10
 
 // HC-12 configuration for JUMP
-//#define HC12_TX_TO_ARDUINO_RX_PIN 10
-//#define HC12_RX_FROM_ARDUINO_TX_PIN 11
+#define HC12_TX_TO_ARDUINO_RX_PIN 10
+#define HC12_RX_FROM_ARDUINO_TX_PIN 11
 // HC-12 configuration for Ross'd development board
-#define HC12_TX_TO_ARDUINO_RX_PIN 2
-#define HC12_RX_FROM_ARDUINO_TX_PIN 4
+//#define HC12_TX_TO_ARDUINO_RX_PIN 2
+//#define HC12_RX_FROM_ARDUINO_TX_PIN 4
 
 
 /***********
