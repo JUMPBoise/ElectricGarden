@@ -1,8 +1,9 @@
+#include <RBD_Button.h>
 #include <SoftwareSerial.h>
 
-#define ROSS_DEVL
+//#define ROSS_DEVL
 
-#define HAS_BENDER_KNOBS
+//#define HAS_BENDER_KNOBS
 
 
 /*****************
@@ -62,8 +63,14 @@ static const uint32_t retransmitIntervalMs = 500;
 #define POT2_APIN A1
 #define POT3_APIN A2
 
+#define BENDER_BUTTON_PIN 9
+#define BENDER_LED_PIN LED_BUILTIN
+
+#define BENDER_LED_ON HIGH
+#define BENDER_LED_OFF LOW
+
 // benderRetransmitIntervalMs controls how often we will transmit the bender knob values.
-static const uint32_t benderRetransmitIntervalMs = 2000;
+static const uint32_t benderRetransmitIntervalMs = 667;
 
 #endif
 
@@ -74,6 +81,10 @@ static const uint32_t benderRetransmitIntervalMs = 2000;
 
 static SoftwareSerial HC12(HC12_TX_TO_ARDUINO_RX_PIN, HC12_RX_FROM_ARDUINO_TX_PIN);
 
+#ifdef HAS_BENDER_KNOBS
+static RBD::Button benderButton(BENDER_BUTTON_PIN, true);  // true -> enable internal pullup
+static bool benderIsEnabled;
+#endif
 
 /**********************
  * Setup and Run Loop *
@@ -103,6 +114,8 @@ void setup()
   pinMode(POT1_APIN, INPUT);
   pinMode(POT2_APIN, INPUT);
   pinMode(POT3_APIN, INPUT);
+  pinMode(BENDER_LED_PIN, OUTPUT);
+  digitalWrite(BENDER_LED_PIN, BENDER_LED_OFF);
 #endif
 }
 
@@ -112,15 +125,31 @@ void readAndSendBenderValues(uint32_t now)
 {
   static uint32_t lastBenderTxMs;
 
-  if (now - lastBenderTxMs >= benderRetransmitIntervalMs) {     // state is valid and should be (re)sent?
+  if (benderButton.onPressed()) {
+    benderIsEnabled = !benderIsEnabled;
+    digitalWrite(BENDER_LED_PIN, benderIsEnabled ? BENDER_LED_ON : BENDER_LED_OFF);
+    // Transmit bender message immediately after bender is enabled or disabled.
+    lastBenderTxMs = 0L;
+  }
+
+  if (now - lastBenderTxMs >= benderRetransmitIntervalMs) {
     lastBenderTxMs = now;
 
-    // We right shift the ADC values by 3 bits to essentially divide them by 8, thus
-    // giving a range of 0 to 127 (instead of 0 - 1023).  We have to do this because
-    // we can use only 7 bits for each bender value.
-    byte bender1 = analogRead(POT1_APIN) >> 3;
-    byte bender2 = analogRead(POT2_APIN) >> 3;
-    byte bender3 = analogRead(POT3_APIN) >> 3;
+    byte bender1;
+    byte bender2;
+    byte bender3;
+    if (benderIsEnabled) {
+      // We right shift the ADC values by 3 bits to essentially divide them by 8, thus
+      // giving a range of 0 to 127 (instead of 0 - 1023).  We have to do this because
+      // we can use only 7 bits for each bender value.
+      bender1 = analogRead(POT1_APIN) >> 3;
+      bender2 = analogRead(POT2_APIN) >> 3;
+      bender3 = analogRead(POT3_APIN) >> 3;
+    }
+    else {
+      // 64 means don't bend a value.
+      bender1 = bender2 = bender3 = 64;
+    }
 
     // Turn on the high-order bit of each bender value so that they
     // don't get misinterpreted as framing (start or stop) characters.
