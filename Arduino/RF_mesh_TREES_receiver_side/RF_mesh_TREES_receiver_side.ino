@@ -25,6 +25,12 @@
 #endif
 #define FRAMES_PER_SECOND 30
 
+// timing
+#define LED_FRAMES_PER_SECOND 24
+#define PATTERN_UPDATE_INTERVAL_MS 30
+#define HUE_STEP_INTERVAL_MS 20
+#define PALETTE_BLEND_INTERVAL_MS 10
+
 #ifndef ROSS_DEVL
 // HC-12 configuration for JUMP
 #define HC12_TX_TO_ARDUINO_RX_PIN 10
