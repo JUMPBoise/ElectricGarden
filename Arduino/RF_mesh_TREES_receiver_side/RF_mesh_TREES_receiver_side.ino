@@ -142,6 +142,20 @@ void addGlitter(fract8 chanceOfGlitter)
   }
 }
 
+void addRed(fract8 chanceOfGlitter)
+{
+  if(random8() < chanceOfGlitter) {
+    leds[random16(NUM_LEDS)] += CHSV(0, 255, 192);
+  }
+}
+
+void addBlue(fract8 chanceOfGlitter)
+{
+  if(random8() < chanceOfGlitter) {
+    leds[random16(NUM_LEDS)] += CHSV(160, 255, 192);
+  }
+}
+
 
 // ---------- Noise Generator1 (for bottom part of tree) ----------
 void fillnoiseB()
@@ -184,7 +198,7 @@ void pattern0_off()
   waveB = .5;   // fast pulse a high number 0-5     default 1
   waveC = 2;    // randomizes sine wave pulse higher number fast 0-80 default 4
 
-  EVERY_N_MILLISECONDS(10) {
+  EVERY_N_MILLISECONDS(PALETTE_BLEND_INTERVAL_MS) {
     nblendPaletteTowardPalette(currentPalette, targetPalette, maxChanges);  // Blend towards the target palette
     // Update the LED array with noise at the new location
     fillnoiseT();
@@ -194,8 +208,6 @@ void pattern0_off()
   EVERY_N_SECONDS(1) {            // Change the target palette to a random one every 5 seconds.
      targetPalette = CRGBPalette16(CRGB::Black);
   }
-
-  LEDS.show();                    // Display the LEDs at every loop cycle.
 }
 
 
@@ -206,7 +218,7 @@ void pattern1_partySparkle()
   waveB = .8;   // fast pulse a high number 0-5     default 1
   waveC = 1;    // randomizes sine wave pulse higher number fast 0-80 default 4
 
-  EVERY_N_MILLISECONDS(10) {
+  EVERY_N_MILLISECONDS(PALETTE_BLEND_INTERVAL_MS) {
     nblendPaletteTowardPalette(currentPalette, targetPalette, maxChanges);  // Blend towards the target palette
     // Update the LED array with noise at the new location
     fillnoiseT();
@@ -217,9 +229,7 @@ void pattern1_partySparkle()
   EVERY_N_SECONDS(1) {            // Change the target palette to a random one periodically.
     targetPalette = CRGBPalette16(PartyColors_p);
   }
-
-  LEDS.show();                    // Display the LEDs at every loop cycle.
-  }
+}
 
 
 void pattern2_singleTrailz()
@@ -230,8 +240,6 @@ void pattern2_singleTrailz()
   if (pos < NUM_LEDS) {           // it should always be in bounds, but defensive programming is a good thing
     leds[pos] += CHSV(gHue, 255, 192);
   }
-
-  LEDS.show();                    // Display the LEDs at every loop cycle.
 }
 
 
@@ -240,7 +248,6 @@ void pattern3_rainbowSparkle()
   // FastLED's built-in rainbow generator
   fill_rainbow(leds, NUM_LEDS, gHue, 7);
   addGlitter(20);
-  LEDS.show();                    // Display the LEDs at every loop cycle.
 }
 
 
@@ -248,7 +255,6 @@ void pattern4_randomDots()
 {
   leds[randomNumber] += CHSV(gHue, 255, 192);
   fadeToBlackBy(leds, NUM_LEDS, 3);
-  LEDS.show();                    // Display the LED's at every loop cycle.
   // TODO ross 11 Feb. 2019:  Should this be += or just = ?  Incrementing by CRGB::Black probably doesn't do anything.
   leds[randomNumber] += CRGB::Black;
 }
@@ -261,18 +267,19 @@ void pattern5_lava()
   waveB = .3;   // fast pulse a high number 0-5     default 1
   waveC = 1;    // randomizes sine wave pulse higher number fast 0-80 default 4
 
-  EVERY_N_MILLISECONDS(10) {
+  EVERY_N_MILLISECONDS(PALETTE_BLEND_INTERVAL_MS) {
     nblendPaletteTowardPalette(currentPalette, targetPalette, maxChanges);  // Blend towards the target palette
     // Update the LED array with noise at the new location
     fillnoiseT();
-    fillnoiseB();
+   // fillnoiseB();
+    addRed(30);
+    addGlitter(10);
+    fadeToBlackBy(leds, NUM_LEDS, 60);
   }
 
   EVERY_N_SECONDS(1) {            // Change the target palette to a random one periodically.
     targetPalette = CRGBPalette16(LavaColors_p);  // max of 4 colors
   }
-
-  LEDS.show();                    // Display the LEDs at every loop cycle.
 }
 
 
@@ -285,25 +292,25 @@ void pattern6_trailzRandom()
     leds[pos] += CHSV(gHue, 255, 192);
   }
   leds[randomNumberT] += CHSV(gHue, 255, 192);
-  LEDS.show();                    // Display the LEDs at every loop cycle.
 }
 
 
 void pattern7_lavaTrailzRandom()
 {
   // sine variables
-  waveA = 3;    // high number more speratic 0-150 default 10
-  waveB = .3;   // fast pulse a high number 0-5     default 1
-  waveC = 10;   // randomizes sine wave pulse higher number fast 0-80 default 4
+  waveA = 60;    // high number more speratic 0-150 default 10
+  waveB = 1;   // fast pulse a high number 0-5     default 1
+  waveC = 4;   // randomizes sine wave pulse higher number fast 0-80 default 4
 
-  EVERY_N_MILLISECONDS(10) {
+  EVERY_N_MILLISECONDS(PALETTE_BLEND_INTERVAL_MS) {
     nblendPaletteTowardPalette(currentPalette, targetPalette, maxChanges);  // Blend towards the target palette
     // Update the LED array with noise at the new location
     fillnoiseB();
   }
 
   EVERY_N_SECONDS(1) {             // Change the target palette to a random one periodically.
-    targetPalette = CRGBPalette16(LavaColors_p);  //max of 4 colors
+    targetPalette = CRGBPalette16(CHSV(192, 255, 192), CHSV(224, 255, 192), CHSV(250, 255, 192));  //max of 4 colors
+    
   }
 
   // a colored dot sweeping back and forth, with fading trails
@@ -313,7 +320,6 @@ void pattern7_lavaTrailzRandom()
     leds[pos] += CHSV(gHue, 255, 192);
   }
   leds[randomNumberT] += CHSV(gHue, 255, 192);
-  LEDS.show();                    // Display the LEDs at every loop cycle.
 }
 
 
@@ -329,9 +335,6 @@ void pattern8_multiTrailz()
       dothue += 32;
     }
   }
-
-  // Show the leds
-  FastLED.show();
 }
 
 
@@ -369,6 +372,22 @@ void loop()
   static byte rxBufLen;                     // index of the next slot to fill in rxBuf and also the number of bytes in the buffer
   static boolean gotStartMarker = false;    // gets set true when we receive any start marker
 
+//  // Print the average (with N = 64) time spent in each loop iteration.
+//  static unsigned long lastLoopMs;
+//  static unsigned long sumLoopMs;
+//  static byte loopTimeCount;
+//  unsigned long now = millis();
+//  sumLoopMs += (now - lastLoopMs);
+//  lastLoopMs = now;
+//  ++loopTimeCount;
+//  if (loopTimeCount >= 64) {
+//    unsigned long avgLoopMs = sumLoopMs >> 6;
+//    Serial.print("avgLoopMs=");
+//    Serial.println(avgLoopMs);
+//    sumLoopMs = 0;
+//    loopTimeCount = 0;
+//  }
+
 //  // for cylcing the code without the controller
 //  static long timer = 60000;
 //  static long timekeeper = 0;
@@ -391,12 +410,12 @@ void loop()
     if (gotStartMarker) {                       // We have received a start marker?
       if (incomingByte != endMarker) {
         if (rxBufLen < rxBufSize) {             // There is room in the buffer?
-          rxBuf[rxBufLen++] = incomingByte;     // Put the byte in the receive buffer and increment the index of the next slot to fill.
+          rxBuf[rxBufLen++] = incomingByte;     // Put byte in receive buffer and increment the index of the next slot to fill.
         }
         else {                                  // Buffer overflow, so throw away everything and wait for a new message.
           Serial.println("rxBuf overflow!");
           gotStartMarker = false;
-          rxMsgType = MsgType::none;              // not currently receiving a message
+          rxMsgType = MsgType::none;            // not currently receiving a message
         }
       }
       else {                                    // We've reached the end marker.
@@ -417,7 +436,6 @@ void loop()
       rxBufLen = 0;
     }
   }
-delay(6);   // TODO:  hack to give SoftwareSerial a chance to receive before FastLED hogs all the cycles without interrupts enabled
 
   if (msgType == MsgType::button) {
     msgType = MsgType::none;                    // Indicate that the message has been handled.
@@ -434,7 +452,6 @@ delay(6);   // TODO:  hack to give SoftwareSerial a chance to receive before Fas
     else if (msgData == '4') Active = 4;
     else if (msgData == '5') Active = 5;
     else if (msgData == '6') Active = 6;
-    // TODO ross 11 Feb. 2019:  are we supposed to allow patterns 7 and 8?  the previous version did not ever set Active to those values.
     else if (msgData == '7') Active = 7;
     else if (msgData == '8') Active = 8;
     else Active = 86;
@@ -455,7 +472,7 @@ delay(6);   // TODO:  hack to give SoftwareSerial a chance to receive before Fas
   // Process a bender message.
   if (msgType == MsgType::bender) {
     msgType = MsgType::none;                    // Indicate that the message has been handled.
-    if (rxBufLen == NUM_BENDERS) {              // accept only complete bender messages
+    if (rxBufLen == NUM_BENDERS) {              // Accept only complete bender messages.
       // Valid bender values are 0 - 127 but are transmitted with the high-order bit
       // set so that they are not confused with message start or end characters.
       // If the high-order bit isn't set, we'll ignore the value because it is probably
@@ -472,45 +489,54 @@ delay(6);   // TODO:  hack to give SoftwareSerial a chance to receive before Fas
     }
   }
 
-  randomNumber = random(0, NUM_LEDS);                         // random number generator for entire tree
-  randomNumberB = random(0, NUM_LEDS_IN_BOTTOM_PART);         // random number generator for bottom
-  randomNumberT = random(NUM_LEDS_IN_BOTTOM_PART, NUM_LEDS);  // random number generator for top
-
   // slowly cycle the "base color" through the rainbow
-  EVERY_N_MILLISECONDS(20) {
+  EVERY_N_MILLISECONDS(HUE_STEP_INTERVAL_MS) {
     gHue++;
   }
 
-  switch (State) {
-    case 0:
-      pattern0_off();
-      break;
-    case 1:
-      pattern1_partySparkle();
-      break;
-    case 2:
-      pattern2_singleTrailz();
-      break;
-    case 3:
+  // Periodically update the patterns.
+  EVERY_N_MILLISECONDS(PATTERN_UPDATE_INTERVAL_MS) {
+
+    randomNumber = random(0, NUM_LEDS);                         // random number generator for entire tree
+    randomNumberB = random(0, NUM_LEDS_IN_BOTTOM_PART);         // random number generator for bottom
+    randomNumberT = random(NUM_LEDS_IN_BOTTOM_PART, NUM_LEDS);  // random number generator for top
+
+    switch (State) {
+      case 0:
+        pattern0_off();
+        break;
+      case 1:
       pattern3_rainbowSparkle();
-      break;
-    case 4:
-      pattern4_randomDots();
-      break;
-    case 5:
-      pattern5_lava();
-      break;
-    case 6:
+        break;
+      case 2:
+        pattern1_partySparkle();
+        break;
+      case 3:
+        pattern2_singleTrailz();
+        break;
+      case 4:
+        pattern4_randomDots();
+        break;
+      case 5:
+        pattern8_multiTrailz();
+        break;
+      case 6:
+        pattern5_lava();
+        break;
+      case 7:
+        pattern7_lavaTrailzRandom();
+        break;
+      case 8:
       pattern6_trailzRandom();
-      break;
-    case 7:
-      pattern7_lavaTrailzRandom();
-      break;
-    case 8:
-      pattern8_multiTrailz();
-      break;
-    //default:
-      // TODO ross 11 Feb 2018:  We should indicate an internal error somehow if State is invalid.
+        break;
+      //default:
+        // TODO ross 11 Feb 2018:  We should indicate an internal error somehow if State is invalid.
+    }
+  }
+
+  // Write to the LEDs approximately LED_FRAMES_PER_SECOND times per second.
+  EVERY_N_MILLISECONDS(1000 / LED_FRAMES_PER_SECOND) {
+    LEDS.show();
   }
 }
 
