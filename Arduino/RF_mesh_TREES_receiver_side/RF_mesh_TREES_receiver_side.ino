@@ -23,7 +23,6 @@
 #define NUM_LEDS_IN_BOTTOM_PART 25
 #define BRIGHTNESS 64
 #endif
-#define FRAMES_PER_SECOND 30
 
 // timing
 #define LED_FRAMES_PER_SECOND 24
@@ -221,7 +220,7 @@ void pattern0_off()
 void pattern1_partySparkle()
 {
   // sine variables
-  waveA = bend(25, 1);    // high number more speratic 0-150 default 10
+  waveA = 25;             // high number more speratic 0-150 default 10
   // TODO ross 25 Feb. 2019:  waveB is an int, not a float.
   waveB = .8;             // fast pulse a high number 0-5     default 1
   waveC = 1;              // randomizes sine wave pulse higher number fast 0-80 default 4
@@ -231,7 +230,7 @@ void pattern1_partySparkle()
     // Update the LED array with noise at the new location
     fillnoiseT();
     fillnoiseB();
-    addGlitter(80);
+    addGlitter(bend(80, 1));
   }
 
   EVERY_N_SECONDS(1) {            // Change the target palette to a random one periodically.
@@ -243,8 +242,8 @@ void pattern1_partySparkle()
 void pattern2_singleTrailz()
 {
   // a colored dot sweeping back and forth, with fading trails
-  fadeToBlackBy(leds, NUM_LEDS, 30);
-  unsigned int pos = beatsin16(bend(30, 1), 0, NUM_LEDS - 1);    // (speed, firstled, lastled)
+  fadeToBlackBy(leds, NUM_LEDS, bend(30, 1));
+  unsigned int pos = beatsin16(30, 0, NUM_LEDS - 1);    // (speed, firstled, lastled)
   if (pos < NUM_LEDS) {           // it should always be in bounds, but defensive programming is a good thing
     leds[pos] += CHSV(gHue, 255, 192);
   }
@@ -271,7 +270,7 @@ void pattern4_randomDots()
 void pattern5_lava()
 {
   // sine variables
-  waveA = bend(3, 1);    // high number more speratic 0-150 default 10
+  waveA = 3;            // high number more speratic 0-150 default 10
   // TODO ross 25 Feb. 2019:  waveB is an int, not a float.
   waveB = .3;           // fast pulse a high number 0-5     default 1
   waveC = 1;            // randomizes sine wave pulse higher number fast 0-80 default 4
@@ -281,9 +280,9 @@ void pattern5_lava()
     // Update the LED array with noise at the new location
     fillnoiseT();
    // fillnoiseB();
-    addRed(30);
-    addGlitter(10);
-    fadeToBlackBy(leds, NUM_LEDS, 60);
+    addRed(bend(30, 1));
+    addGlitter(bend(10, 2));
+    fadeToBlackBy(leds, NUM_LEDS, bend(60, 3));
   }
 
   EVERY_N_SECONDS(1) {            // Change the target palette to a random one periodically.
@@ -296,7 +295,7 @@ void pattern6_trailzRandom()
 {
   // a colored dot sweeping back and forth, with fading trails
   fadeToBlackBy(leds, NUM_LEDS, bend(30, 1));
-  unsigned int pos = beatsin16(bend(5, 2), 0, NUM_LEDS_IN_BOTTOM_PART - 1);
+  unsigned int pos = beatsin16(5, 0, NUM_LEDS_IN_BOTTOM_PART - 1);
   if (pos < NUM_LEDS) {           // it should always be in bounds, but defensive programming is a good thing
     leds[pos] += CHSV(gHue, 255, 192);
   }
@@ -307,7 +306,7 @@ void pattern6_trailzRandom()
 void pattern7_lavaTrailzRandom()
 {
   // sine variables
-  waveA = bend(60, 1);    // high number more speratic 0-150 default 10
+  waveA = 60;             // high number more speratic 0-150 default 10
   waveB = 1;              // fast pulse a high number 0-5     default 1
   waveC = 4;              // randomizes sine wave pulse higher number fast 0-80 default 4
 
@@ -323,7 +322,7 @@ void pattern7_lavaTrailzRandom()
   }
 
   // a colored dot sweeping back and forth, with fading trails
-  fadeToBlackBy(leds, NUM_LEDS, 30);
+  fadeToBlackBy(leds, NUM_LEDS, bend(30, 1));
   unsigned int pos = beatsin16(15, NUM_LEDS_IN_BOTTOM_PART, NUM_LEDS - 1);
   if (pos < NUM_LEDS) {           // it should always be in bounds, but defensive programming is a good thing
     leds[pos] += CHSV(gHue, 255, 192);
