@@ -128,14 +128,14 @@ int bend(int value, byte benderNumber)
     bentValue = (value * (((int) benderValue - 65) + 11)) / 10;
   }
 
-  Serial.print("value=");
-  Serial.print(value);
-  Serial.print(" benderNumber=");
-  Serial.print(benderNumber);
-  Serial.print(" benderValue=");
-  Serial.print(benderValue);
-  Serial.print(" bentValue=");
-  Serial.println(bentValue);
+//  Serial.print("value=");
+//  Serial.print(value);
+//  Serial.print(" benderNumber=");
+//  Serial.print(benderNumber);
+//  Serial.print(" benderValue=");
+//  Serial.print(benderValue);
+//  Serial.print(" bentValue=");
+//  Serial.println(bentValue);
 
   return bentValue;
 }
@@ -201,7 +201,8 @@ void pattern0_off()
 {
   //sine variables
   waveA = 12;   // high number more speratic 0-150 default 10
-  waveB = .5;   // fast pulse a high number 0-5     default 1
+  // TODO ross 25 Feb. 2019:  waveB is an int, not a float.  waveB = .5;   // fast pulse a high number 0-5     default 1
+  waveB = 1;   // fast pulse a high number 0-5     default 1
   waveC = 2;    // randomizes sine wave pulse higher number fast 0-80 default 4
 
   EVERY_N_MILLISECONDS(PALETTE_BLEND_INTERVAL_MS) {
@@ -220,9 +221,10 @@ void pattern0_off()
 void pattern1_partySparkle()
 {
   // sine variables
-  waveA = 25;   // high number more speratic 0-150 default 10
-  waveB = .8;   // fast pulse a high number 0-5     default 1
-  waveC = 1;    // randomizes sine wave pulse higher number fast 0-80 default 4
+  waveA = bend(25, 1);    // high number more speratic 0-150 default 10
+  // TODO ross 25 Feb. 2019:  waveB is an int, not a float.
+  waveB = .8;             // fast pulse a high number 0-5     default 1
+  waveC = 1;              // randomizes sine wave pulse higher number fast 0-80 default 4
 
   EVERY_N_MILLISECONDS(PALETTE_BLEND_INTERVAL_MS) {
     nblendPaletteTowardPalette(currentPalette, targetPalette, maxChanges);  // Blend towards the target palette
@@ -242,7 +244,7 @@ void pattern2_singleTrailz()
 {
   // a colored dot sweeping back and forth, with fading trails
   fadeToBlackBy(leds, NUM_LEDS, 30);
-  unsigned int pos = beatsin16(30, 0, NUM_LEDS - 1);    // (speed, firstled, lastled)
+  unsigned int pos = beatsin16(bend(30, 1), 0, NUM_LEDS - 1);    // (speed, firstled, lastled)
   if (pos < NUM_LEDS) {           // it should always be in bounds, but defensive programming is a good thing
     leds[pos] += CHSV(gHue, 255, 192);
   }
@@ -253,14 +255,14 @@ void pattern3_rainbowSparkle()
 {
   // FastLED's built-in rainbow generator
   fill_rainbow(leds, NUM_LEDS, gHue, 7);
-  addGlitter(20);
+  addGlitter(bend(20, 1));
 }
 
 
 void pattern4_randomDots()
 {
   leds[randomNumber] += CHSV(gHue, 255, 192);
-  fadeToBlackBy(leds, NUM_LEDS, 3);
+  fadeToBlackBy(leds, NUM_LEDS, bend(3, 1));
   // TODO ross 11 Feb. 2019:  Should this be += or just = ?  Incrementing by CRGB::Black probably doesn't do anything.
   leds[randomNumber] += CRGB::Black;
 }
@@ -269,9 +271,10 @@ void pattern4_randomDots()
 void pattern5_lava()
 {
   // sine variables
-  waveA = 3;    // high number more speratic 0-150 default 10
-  waveB = .3;   // fast pulse a high number 0-5     default 1
-  waveC = 1;    // randomizes sine wave pulse higher number fast 0-80 default 4
+  waveA = bend(3, 1);    // high number more speratic 0-150 default 10
+  // TODO ross 25 Feb. 2019:  waveB is an int, not a float.
+  waveB = .3;           // fast pulse a high number 0-5     default 1
+  waveC = 1;            // randomizes sine wave pulse higher number fast 0-80 default 4
 
   EVERY_N_MILLISECONDS(PALETTE_BLEND_INTERVAL_MS) {
     nblendPaletteTowardPalette(currentPalette, targetPalette, maxChanges);  // Blend towards the target palette
@@ -292,8 +295,8 @@ void pattern5_lava()
 void pattern6_trailzRandom()
 {
   // a colored dot sweeping back and forth, with fading trails
-  fadeToBlackBy(leds, NUM_LEDS, 30);
-  unsigned int pos = beatsin16(5, 0, NUM_LEDS_IN_BOTTOM_PART - 1);
+  fadeToBlackBy(leds, NUM_LEDS, bend(30, 1));
+  unsigned int pos = beatsin16(bend(5, 2), 0, NUM_LEDS_IN_BOTTOM_PART - 1);
   if (pos < NUM_LEDS) {           // it should always be in bounds, but defensive programming is a good thing
     leds[pos] += CHSV(gHue, 255, 192);
   }
@@ -304,9 +307,9 @@ void pattern6_trailzRandom()
 void pattern7_lavaTrailzRandom()
 {
   // sine variables
-  waveA = 60;    // high number more speratic 0-150 default 10
-  waveB = 1;   // fast pulse a high number 0-5     default 1
-  waveC = 4;   // randomizes sine wave pulse higher number fast 0-80 default 4
+  waveA = bend(60, 1);    // high number more speratic 0-150 default 10
+  waveB = 1;              // fast pulse a high number 0-5     default 1
+  waveC = 4;              // randomizes sine wave pulse higher number fast 0-80 default 4
 
   EVERY_N_MILLISECONDS(PALETTE_BLEND_INTERVAL_MS) {
     nblendPaletteTowardPalette(currentPalette, targetPalette, maxChanges);  // Blend towards the target palette
@@ -332,7 +335,7 @@ void pattern7_lavaTrailzRandom()
 void pattern8_multiTrailz()
 {
   // eight colored dots, weaving in and out of sync with each other
-  fadeToBlackBy(leds, NUM_LEDS, 20);
+  fadeToBlackBy(leds, NUM_LEDS, bend(20, 1));
   byte dothue = 0;
   for(int i = 0; i < 5; i++) {
     unsigned int pos = beatsin16(i + 1.5, 0, NUM_LEDS-1);
@@ -360,6 +363,11 @@ void setup()
   FastLED.setBrightness(BRIGHTNESS);
 
   dist = random16(12345);          // A semi-random number for our noise generator
+
+  // Initialize the benders to have no effect.
+  for (byte i = 0; i < NUM_BENDERS; ++i) {
+    benders[i] = 64;
+  }
 }
 
 
