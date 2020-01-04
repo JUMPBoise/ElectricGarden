@@ -1,9 +1,9 @@
 #include <RBD_Button.h>
 #include <SoftwareSerial.h>
 
-//#define ROSS_DEVL
+#define ROSS_DEVL
 
-//#define HAS_BENDER_KNOBS
+#define HAS_BENDER_KNOBS
 
 
 /*****************
@@ -34,11 +34,11 @@ static const int buttonPinE = A5;
 
 // ----- button configuration for Ross's development board -----
 
-static const int buttonPinA = 2;
-static const int buttonPinB = 3;
-static const int buttonPinC = 4;
-static const int buttonPinD = 5;
-static const int buttonPinE = 6;
+static const int buttonPinA = 8;
+static const int buttonPinB = A5;
+static const int buttonPinC = A4;
+static const int buttonPinD = A0;
+static const int buttonPinE = A1;
 
 // Use this when the buttons are active low.  Active low means that the pin is
 // put in a low state when the button is pushed.  That is the case when the
@@ -59,12 +59,14 @@ static const uint32_t retransmitIntervalMs = 500;
 
 #ifdef HAS_BENDER_KNOBS
 
-#define POT1_APIN A0
-#define POT2_APIN A1
-#define POT3_APIN A2
+#define POT1_APIN A2
+#define POT2_APIN A7
+#define POT3_APIN A6
 
-#define BENDER_BUTTON_PIN 9
-#define BENDER_LED_PIN LED_BUILTIN
+#define BENDER_BUTTON_PIN A3
+#define BENDER_LED_PIN 6
+
+#define POWER_LED_PIN 5
 
 #define BENDER_LED_ON HIGH
 #define BENDER_LED_OFF LOW
@@ -115,7 +117,9 @@ void setup()
   pinMode(POT2_APIN, INPUT);
   pinMode(POT3_APIN, INPUT);
   pinMode(BENDER_LED_PIN, OUTPUT);
+  pinMode(POWER_LED_PIN, OUTPUT);
   digitalWrite(BENDER_LED_PIN, BENDER_LED_OFF);
+  analogWrite(POWER_LED_PIN, 8);
 #endif
 }
 
@@ -187,6 +191,11 @@ void loop()
   int Ring = digitalRead(buttonPinC) == BUTTON_PUSHED;
   int Pinky = digitalRead(buttonPinB) == BUTTON_PUSHED;
   int Thumb = digitalRead(buttonPinA) == BUTTON_PUSHED;
+//  int Index = !BUTTON_PUSHED;
+//  int Middle = !BUTTON_PUSHED;
+//  int Ring = !BUTTON_PUSHED;
+//  int Pinky = !BUTTON_PUSHED;
+//  int Thumb = !BUTTON_PUSHED;
 
   /*
   Serial.println(Index);
@@ -210,15 +219,15 @@ void loop()
   else if (              Index == 1 && Middle == 1 && Ring == 1 && Pinky == 1) state = 0;   // turn pattern off
   else                                                                         state = 86;  // send no signal
 
-  if (state >= 0 && state <= 8 && now - lastTxMs >= retransmitIntervalMs) {     // state is valid and should be (re)sent?
-    lastTxMs = now;
-
-    HC12.print("^");
-    HC12.print(state);
-    HC12.print("%");
-
-    Serial.println(state);
-  }
+//  if (state >= 0 && state <= 8 && now - lastTxMs >= retransmitIntervalMs) {     // state is valid and should be (re)sent?
+//    lastTxMs = now;
+//
+//    HC12.print("^");
+//    HC12.print(state);
+//    HC12.print("%");
+//
+//    Serial.println(state);
+//  }
 
 #ifdef HAS_BENDER_KNOBS
   readAndSendBenderValues(now);
