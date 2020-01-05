@@ -1,5 +1,16 @@
 /* This is Single_Buzzer.ino by Michael Spindler 12-11-2019
  *  
+ *  This sketch was operationally checked on a NANO on 1-5-2020
+ *  and it worked.  
+ *  
+ *  Pin 9, the speaker output, is pin D9.
+ *  DON'T USE THE OUTPUT ON AN 8 OHM SPEAKER WITHOUT A
+ *  (220 OHM ?) RESISTOR IN SERIES TO LIMIT CURRENT 
+ *  
+ *  SDA is A4 
+ *  SCL is A5
+ *  VIN is 5v
+ *  GND is GND
  *  
  *  This example shows how to get single-shot range
  measurements from the VL53L0X. The sensor can optionally be
