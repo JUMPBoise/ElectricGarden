@@ -11,6 +11,8 @@
  *  SCL is A5
  *  VIN is 5v
  *  GND is GND
+ *  
+ *  See the wiring diagram DUAL_XL53L0X, sketch # CFS-1-5-2020-B.
  *
  *  You can expect similar execution of the sketch on Mega 2560  
  *  and Uno dev boards, but pin names may vary.
