@@ -11,7 +11,10 @@
  *  SCL is A5
  *  VIN is 5v
  *  GND is GND
- *  
+ *
+ *  You can expect similar execution of the sketch on Mega 2560  
+ *  and Uno dev boards, but pin names may vary.
+ *
  *  This example shows how to get single-shot range
  measurements from the VL53L0X. The sensor can optionally be
  configured with different ranging profiles, as described in
