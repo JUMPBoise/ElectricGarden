@@ -21,17 +21,21 @@
  ***********/
 
 #define ENABLE_WATCHDOG
-//#define ENABLE_DEBUG_PRINT
+#define ENABLE_DEBUG_PRINT
+
 
 
 /************
  * Includes *
  ************/
 
+#include <avr/pgmspace.h>
+
 #ifdef ENABLE_WATCHDOG
   #include <avr/wdt.h>
 #endif
 
+#include <FastLED.h>
 #include <SPI.h>
 #include "RF24.h"
 
@@ -57,15 +61,31 @@
  *********************************************/
 
 #define LAMP_TEST_PIN 14
-#define PIXEL_STRIP_PIN 4
 #define RGB_LED_RED_PIN 3
 #define RGB_LED_GREEN_PIN 5
 #define RGB_LED_BLUE_PIN 6
 #define SIMULATION_PIN 15 
 
-#define COLOR_ORDER GRB
-#define CHIPSET WS2812B
+#define NUM_STRIPS 3
 
+#define STRIP_0_CHIPSET WS2812B
+#define STRIP_0_COLOR_ORDER GRB
+#define STRIP_0_PIN 2
+
+#define STRIP_1_CHIPSET WS2812B
+#define STRIP_1_COLOR_ORDER GRB
+#define STRIP_1_PIN 4
+
+#define STRIP_2_CHIPSET WS2812B
+#define STRIP_2_COLOR_ORDER GRB
+#define STRIP_2_PIN 7
+
+//constexpr uint8_t numBottomSectionPixels[NUM_STRIPS] = {150, 150, 150};
+//constexpr uint8_t numTopSectionPixels[NUM_STRIPS] = {50, 50, 50};
+constexpr uint8_t numBottomSectionPixels[NUM_STRIPS] = {150, 150};
+constexpr uint8_t numTopSectionPixels[NUM_STRIPS] = {50, 50};
+
+/*
 #if defined(TARGET_IS_TREE)
   #define NUM_LEDS 300
   #define NUM_LEDS_IN_BOTTOM_PART 150
@@ -81,6 +101,9 @@
 #else
   #error No target defined.
 #endif
+*/
+
+constexpr uint8_t overallBrightness = 255;
 
 #define LED_FRAMES_PER_SECOND 24
 #define PATTERN_UPDATE_INTERVAL_MS 30
@@ -110,6 +133,9 @@ constexpr int16_t maxDistance = 1000;
 // This should prevent unwanted flashing if a bad message is received.  (It
 // is rare, but a corrupt message can make it through the NRF24L01's CRC check.)
 constexpr uint8_t newPatternRepetitionThreshold = 3;
+
+// free memory that must remain after allocating pixel data arrays
+constexpr uint16_t reservedRamSize = 128;
 
 
 
@@ -201,13 +227,30 @@ struct CustomPayload {
  * Globals *
  ***********/
 
-static CRGB pixels[NUM_LEDS];
+static uint8_t numPixels[NUM_STRIPS];
+static CRGB* pixels[NUM_STRIPS];
 
 static bool widgetIsActive;
 static uint8_t currentPatternNum;
 static int16_t currentDistance[numDistanceMeasmts];
 
 static RF24 radio(9, 10);    // CE on pin 9, CSN on pin 10, also uses SPI bus (SCK on 13, MISO on 12, MOSI on 11)
+
+
+
+/***********
+ * Helpers *
+ ***********/
+
+uint16_t freeRam() 
+{
+  // Based on code retrieved on 1 April 2015 from
+  // https://learn.adafruit.com/memories-of-an-arduino/measuring-free-memory
+
+  extern int __heap_start, *__brkval; 
+  int v; 
+  return (uint16_t) &v - (__brkval == 0 ? (uint16_t) &__heap_start : (uint16_t) __brkval); 
+}
 
 
 
@@ -234,16 +277,16 @@ void updatePattern()
     return;
   }
 
-  switch (currentPatternNum) {
-    case 0:
-      pattern0_off();
-      break;
-    case 1:
-      pattern1_rainbow();
-      break;
-    default:
-      // TODO:  turn status LED orange or something because the pattern number is invalid
-    }
+//  switch (currentPatternNum) {
+//    case 0:
+//      pattern0_off();
+//      break;
+//    case 1:
+//      pattern1_rainbow();
+//      break;
+//    default:
+//      // TODO:  turn status LED orange or something because the pattern number is invalid
+//  }
 }
 
 
@@ -385,7 +428,7 @@ void updateSimulatedMeasurements()
 
 void initGpios()
 {
-  // FastLED takes care of setting up PIXEL_STRIP_PIN.
+  // FastLED takes care of setting up the pixel data output pins.
 
   pinMode(LAMP_TEST_PIN, INPUT_PULLUP);
   pinMode(RGB_LED_RED_PIN, OUTPUT);
@@ -428,10 +471,49 @@ void initRadio()
 }
 
 
-void initPixels()
+bool initPixels()
 {
-  FastLED.addLeds<CHIPSET, PIXEL_STRIP_PIN, COLOR_ORDER>(pixels, NUM_LEDS).setCorrection(TypicalLEDStrip);
-  FastLED.setBrightness(BRIGHTNESS);
+  bool retval = true;
+
+  for (uint8_t i = 0; i < NUM_STRIPS; ++i) {
+    numPixels[i] = numBottomSectionPixels[i] + numTopSectionPixels[i];
+    // Make sure there's enough free RAM to store the pixel data.
+    uint16_t availableRam = freeRam() > reservedRamSize ? freeRam - reservedRamSize : 0;
+    if (numPixels[i] * sizeof(CRGB) > availableRam) {
+#ifdef ENABLE_DEBUG_PRINT
+      Serial.print(F("Pixel strip "));
+      Serial.print(i);
+      Serial.print(F(" requires "));
+      Serial.print(numPixels[i] * sizeof(CRGB));
+      Serial.print(F(" bytes but only "));
+      Serial.print(availableRam);
+      Serial.println(F(" bytes are available."));
+#endif
+      retval = false;
+    }
+    pixels[i] = new CRGB[numPixels[i]];
+  }
+
+#if (NUM_STRIPS >= 1)
+  FastLED.addLeds<STRIP_0_CHIPSET, STRIP_0_PIN, STRIP_0_COLOR_ORDER>(pixels[0], numPixels[0]);
+#endif 
+#if (NUM_STRIPS >= 2)
+  FastLED.addLeds<STRIP_1_CHIPSET, STRIP_1_PIN, STRIP_1_COLOR_ORDER>(pixels[1], numPixels[1]);
+#endif 
+#if (NUM_STRIPS >= 3)
+  FastLED.addLeds<STRIP_2_CHIPSET, STRIP_2_PIN, STRIP_2_COLOR_ORDER>(pixels[2], numPixels[2]);
+#endif 
+#if (NUM_STRIPS >= 4)
+  #error Too many strips configured.
+#endif
+#if (!defined(NUM_STRIPS) || NUM_STRIPS <= 0)
+  #error Invalid number of strips configured.
+#endif
+
+  FastLED.setCorrection(TypicalLEDStrip);
+  FastLED.setBrightness(overallBrightness);
+
+  return retval;
 }
 
 
@@ -444,7 +526,7 @@ void setup()
 #endif
 
   initGpios();
-  initRadio();
+//  initRadio();
   initPixels();
 
 #ifdef ENABLE_WATCHDOG
@@ -460,15 +542,11 @@ void setup()
 
 void loop()
 {
-  static int32_t lastDmxTxMs;
-
-  uint32_t now = millis();
-
   if (digitalRead(SIMULATION_PIN) == SIMULATION_ACTIVE) {
     updateSimulatedMeasurements();
   }
   else {
-    pollRadio();
+//    pollRadio();
   }
 
   // Periodically update the pattern.
@@ -478,7 +556,7 @@ void loop()
 
   // Periodically write to the LEDs.
   EVERY_N_MILLISECONDS(1000 / LED_FRAMES_PER_SECOND) {
-    LEDS.show();
+//    FastLED.show();
   }
 
 #ifdef ENABLE_WATCHDOG
