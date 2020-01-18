@@ -1,3 +1,4 @@
+
 /****************************************************************************
  *                                                                          *
  * Theremin Pixel Pattern Generator                                         *
@@ -60,11 +61,11 @@
  * Implementation and Behavior Configuration *
  *********************************************/
 
-#define LAMP_TEST_PIN 14
+#define LAMP_TEST_PIN A0
 #define RGB_LED_RED_PIN 3
 #define RGB_LED_GREEN_PIN 5
 #define RGB_LED_BLUE_PIN 6
-#define SIMULATION_PIN 15 
+#define SIMULATION_PIN A1 
 
 #define NUM_STRIPS 3
 
@@ -82,8 +83,8 @@
 
 //constexpr uint8_t numBottomSectionPixels[NUM_STRIPS] = {150, 150, 150};
 //constexpr uint8_t numTopSectionPixels[NUM_STRIPS] = {50, 50, 50};
-constexpr uint8_t numBottomSectionPixels[NUM_STRIPS] = {150, 150};
-constexpr uint8_t numTopSectionPixels[NUM_STRIPS] = {50, 50};
+constexpr uint8_t numBottomSectionPixels[NUM_STRIPS] = {15, 64, 150};
+constexpr uint8_t numTopSectionPixels[NUM_STRIPS] = {35, 32, 50};
 
 /*
 #if defined(TARGET_IS_TREE)
@@ -103,7 +104,7 @@ constexpr uint8_t numTopSectionPixels[NUM_STRIPS] = {50, 50};
 #endif
 */
 
-constexpr uint8_t overallBrightness = 255;
+constexpr uint8_t overallBrightness = 64;
 
 #define LED_FRAMES_PER_SECOND 24
 #define PATTERN_UPDATE_INTERVAL_MS 30
@@ -137,6 +138,13 @@ constexpr uint8_t newPatternRepetitionThreshold = 3;
 // free memory that must remain after allocating pixel data arrays
 constexpr uint16_t reservedRamSize = 128;
 
+// for rejecting bad messages that make it past the CRC check
+// (which happens with the NRF24L01+ way more than you'd think)
+constexpr int16_t minValidPatternNum = 0;
+constexpr int16_t maxValidPatternNum = 255;
+constexpr int16_t minValidDistance = 0;
+constexpr int16_t maxValidDistance = 4000;
+
 
 
 /***********************
@@ -154,7 +162,7 @@ constexpr uint16_t reservedRamSize = 128;
 // WiFi ch. centers: 1:2412, 2:2417, 3:2422, 4:2427, 5:2432, 6:2437, 7:2442,
 //                   8:2447, 9:2452, 10:2457, 11:2462, 12:2467, 13:2472, 14:2484
 // Illumicone widgets use channel 97, so it is wise to pick something else.
-#define RF_CHANNEL 80
+#define RF_CHANNEL 97  //80
 
 // Nwdgt, where N indicates the pipe number (0-6) and payload type (0: stress test;
 // 1: position & velocity; 2: measurement vector; 3,4: undefined; 5: custom
@@ -258,35 +266,95 @@ uint16_t freeRam()
  * Patterns *
  ************/
 
-void pattern0_off()
+/* all off */
+void pattern0(CRGB* pixelSection, uint8_t numPixelsInSection, uint8_t iStrip, uint8_t iSection)
 {
-    // TODO:  everything
+  fill_solid(pixelSection, numPixelsInSection, CRGB::Black);
 }
 
 
-void pattern1_rainbow()
+/* rainbow */
+void pattern1(CRGB* pixelSection, uint8_t numPixelsInSection, uint8_t iStrip, uint8_t iSection)
 {
-    // TODO:  everything
+  fill_rainbow(pixelSection, numPixelsInSection, 0, 255 / numPixelsInSection);
+}
+
+
+/* section highlight */
+void pattern15(CRGB* pixelSection, uint8_t numPixelsInSection, uint8_t iStrip, uint8_t iSection)
+{
+  static uint8_t colorIdx;
+  const CRGB colors[] = {CRGB::Red, CRGB::Yellow, CRGB::Green, CRGB::Cyan, CRGB::Blue, CRGB::Purple};
+
+  // Always start at the first color when doing the first section of the
+  // first strip.  This makes the pattern static instead of flickering.
+  if (iStrip == 0 && iSection == 0) {
+    colorIdx = 0;
+  }
+
+  fill_solid(pixelSection, numPixelsInSection, colors[colorIdx]);
+  pixelSection[0] = CRGB::White;
+  pixelSection[numPixelsInSection - 1] = CRGB::White;
+
+  if (++colorIdx >= sizeof(colors) / sizeof(CRGB)) {
+    colorIdx = 0;
+  }
 }
 
 
 void updatePattern()
 {
   if (digitalRead(LAMP_TEST_PIN) == LAMP_TEST_ACTIVE) {
+    CRGB lampTestColor = CRGB::White;
+    lampTestColor.nscale8_video(LAMP_TEST_INTENSITY);
+    for (uint8_t i = 0; i < NUM_STRIPS; ++i) {
+      if (pixels[i] != nullptr) {
+        fill_solid(pixels[i], numPixels[i], lampTestColor);
+      }
+    }
     // TODO:  set all the pixels to white at LAMP_TEST_INTENSITY
     return;
   }
 
-//  switch (currentPatternNum) {
-//    case 0:
-//      pattern0_off();
-//      break;
-//    case 1:
-//      pattern1_rainbow();
-//      break;
-//    default:
-//      // TODO:  turn status LED orange or something because the pattern number is invalid
-//  }
+  for (uint8_t iStrip = 0; iStrip < NUM_STRIPS; ++iStrip) {
+    if (pixels[iStrip] == nullptr) {
+      continue;
+    }
+    for (uint8_t iSection = 0; iSection < 2; ++iSection) {
+ 
+      CRGB* pixelSection;
+      uint8_t numPixelsInSection;
+      if (iSection == 0) {
+        if (numBottomSectionPixels[iStrip] == 0) {
+          continue;
+        }
+        pixelSection = pixels[iStrip];
+        numPixelsInSection = numBottomSectionPixels[iStrip];
+      }
+      else {
+        if (numTopSectionPixels[iStrip] == 0) {
+          continue;
+        }
+        pixelSection = pixels[iStrip] + numBottomSectionPixels[iStrip];
+        numPixelsInSection = numTopSectionPixels[iStrip];
+      }
+
+      switch (currentPatternNum) {
+        case 0:
+          pattern0(pixelSection, numPixelsInSection, iStrip, iSection);
+          break;
+        case 1:
+          pattern1(pixelSection, numPixelsInSection, iStrip, iSection);
+          break;
+        case 15:
+          pattern15(pixelSection, numPixelsInSection, iStrip, iSection);
+          break;
+        default:
+          break;
+          // TODO:  turn status LED orange or something because the pattern number is invalid
+      }
+    }
+  }
 }
 
 
@@ -311,12 +379,22 @@ bool handleMeasurementVectorPayload(const MeasurementVectorPayload* payload, uin
     Serial.print(payloadSize);
     Serial.print(F(" bytes but expected "));
     Serial.print(expectedPayloadSize);
-    Serial.println(F(" bytes."));    
+    Serial.println(F(" bytes"));    
 #endif
     return false;
   }
 
-  // TODO:  sanity check the data in case a bad message makes it past the CRC check
+  // Sanity check the data in case a bad message made it past the CRC check.
+  bool gotValidData = (payload->measurements[0] >= minValidPatternNum && payload->measurements[0] <= maxValidPatternNum);
+  for (uint8_t i = 1; gotValidData && i <= numDistanceMeasmts; ++i) {
+    gotValidData = (payload->measurements[i] >= minValidDistance && payload->measurements[i] <= maxValidDistance);
+  }
+  if (!gotValidData) {
+#ifdef ENABLE_DEBUG_PRINT
+    Serial.println(F("got message with invalid data"));
+#endif
+    return false;
+  }
   
   // There is only one theremin, so we don't worry about the widget id in payload->widgetHeader.id.
 
@@ -476,32 +554,50 @@ bool initPixels()
   bool retval = true;
 
   for (uint8_t i = 0; i < NUM_STRIPS; ++i) {
+
+    pixels[i] = nullptr;
+
     numPixels[i] = numBottomSectionPixels[i] + numTopSectionPixels[i];
-    // Make sure there's enough free RAM to store the pixel data.
-    uint16_t availableRam = freeRam() > reservedRamSize ? freeRam - reservedRamSize : 0;
-    if (numPixels[i] * sizeof(CRGB) > availableRam) {
+    if (numPixels[i] == 0) {
+      continue;
+    }
+
+    uint16_t availableRam = freeRam() > reservedRamSize ? freeRam() - reservedRamSize : 0;
+    uint16_t requiredRam = numPixels[i] * sizeof(CRGB);
 #ifdef ENABLE_DEBUG_PRINT
-      Serial.print(F("Pixel strip "));
-      Serial.print(i);
-      Serial.print(F(" requires "));
-      Serial.print(numPixels[i] * sizeof(CRGB));
-      Serial.print(F(" bytes but only "));
-      Serial.print(availableRam);
-      Serial.println(F(" bytes are available."));
+    Serial.print(F("Pixel strip "));
+    Serial.print(i);
+    Serial.print(F(" requires "));
+    Serial.print(requiredRam);
+    Serial.print(F(" bytes; "));
+    Serial.print(availableRam);
+    Serial.println(F(" bytes are available."));
+#endif
+    if (requiredRam <= availableRam) {
+      pixels[i] = new CRGB[numPixels[i]];
+    }
+    else {
+#ifdef ENABLE_DEBUG_PRINT
+      Serial.println(F("*** insufficient RAM for strip"));
 #endif
       retval = false;
     }
-    pixels[i] = new CRGB[numPixels[i]];
   }
 
 #if (NUM_STRIPS >= 1)
-  FastLED.addLeds<STRIP_0_CHIPSET, STRIP_0_PIN, STRIP_0_COLOR_ORDER>(pixels[0], numPixels[0]);
+  if (pixels[0] != nullptr) {
+    FastLED.addLeds<STRIP_0_CHIPSET, STRIP_0_PIN, STRIP_0_COLOR_ORDER>(pixels[0], numPixels[0]);
+  }
 #endif 
 #if (NUM_STRIPS >= 2)
-  FastLED.addLeds<STRIP_1_CHIPSET, STRIP_1_PIN, STRIP_1_COLOR_ORDER>(pixels[1], numPixels[1]);
+  if (pixels[1] != nullptr) {
+    FastLED.addLeds<STRIP_1_CHIPSET, STRIP_1_PIN, STRIP_1_COLOR_ORDER>(pixels[1], numPixels[1]);
+  }
 #endif 
 #if (NUM_STRIPS >= 3)
-  FastLED.addLeds<STRIP_2_CHIPSET, STRIP_2_PIN, STRIP_2_COLOR_ORDER>(pixels[2], numPixels[2]);
+  if (pixels[2] != nullptr) {
+    FastLED.addLeds<STRIP_2_CHIPSET, STRIP_2_PIN, STRIP_2_COLOR_ORDER>(pixels[2], numPixels[2]);
+  }
 #endif 
 #if (NUM_STRIPS >= 4)
   #error Too many strips configured.
@@ -526,7 +622,7 @@ void setup()
 #endif
 
   initGpios();
-//  initRadio();
+  initRadio();
   initPixels();
 
 #ifdef ENABLE_WATCHDOG
@@ -546,7 +642,7 @@ void loop()
     updateSimulatedMeasurements();
   }
   else {
-//    pollRadio();
+    pollRadio();
   }
 
   // Periodically update the pattern.
@@ -556,7 +652,7 @@ void loop()
 
   // Periodically write to the LEDs.
   EVERY_N_MILLISECONDS(1000 / LED_FRAMES_PER_SECOND) {
-//    FastLED.show();
+    FastLED.show();
   }
 
 #ifdef ENABLE_WATCHDOG
