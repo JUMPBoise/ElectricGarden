@@ -1,12 +1,16 @@
 #include "Adafruit_VL53L0X.h"
 
+// This is basically the same sketch as the example code from Adafruit
+// but on 1-16-2020 at 11:30 am, C.Spindler modified the pin numbers
+// for SHT_LOXx to agree with the naming convention for Nano
+
 // address we will assign if dual sensor is present
 #define LOX1_ADDRESS 0x30
 #define LOX2_ADDRESS 0x31
 
 // set the pins to shutdown
-#define SHT_LOX1 7
-#define SHT_LOX2 6
+#define SHT_LOX1 4   // pin 3 refers to digital pin D3 and 4 to D4
+#define SHT_LOX2 3
 
 // objects for the vl53l0x
 Adafruit_VL53L0X lox1 = Adafruit_VL53L0X();
