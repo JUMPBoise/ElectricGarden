@@ -279,15 +279,16 @@ void pattern0(CRGB* pixelSection, uint8_t numPixelsInSection, uint8_t iStrip, ui
 void pattern1(CRGB* pixelSection, uint8_t numPixelsInSection, uint8_t iStrip, uint8_t iSection)
 {
   uint8_t startingHue = map(currentDistance[0], minDistance, maxDistance, 0, 255);
-  
-  constexpr uint8_t minRainbowCompressionFactor = 3;
-  constexpr uint8_t maxRainbowCompressionFactor = 8;
-  uint8_t rainbowLength = map(currentDistance[1], \
-                              minDistance, maxDistance,
-                              numPixelsInSection / minRainbowCompressionFactor, numPixelsInSection / maxRainbowCompressionFactor);
-  uint8_t hueStep = 255 / rainbowLength;
-  
+
+  constexpr uint8_t rainbowCompressionFactor = 4;
+  uint8_t hueStep = 255 / (numPixelsInSection / rainbowCompressionFactor);
+
+  constexpr uint8_t minRainbowBrightness = 64;
+  constexpr uint8_t maxRainbowBrightness = 255;
+  uint8_t brightness = map(currentDistance[1], minDistance, maxDistance, minRainbowBrightness, maxRainbowBrightness);
+
   fill_rainbow(pixelSection, numPixelsInSection, startingHue, hueStep);
+  nscale8_video(pixelSection, numPixelsInSection, brightness);
 }
 
 
