@@ -67,44 +67,43 @@
 #define RGB_LED_BLUE_PIN 6
 #define SIMULATION_PIN A1 
 
-#define NUM_STRIPS 3
-
-#define STRIP_0_CHIPSET WS2812B
-#define STRIP_0_COLOR_ORDER GRB
-#define STRIP_0_PIN 2
-
-#define STRIP_1_CHIPSET WS2812B
-#define STRIP_1_COLOR_ORDER GRB
-#define STRIP_1_PIN 4
-
-#define STRIP_2_CHIPSET WS2812B
-#define STRIP_2_COLOR_ORDER GRB
-#define STRIP_2_PIN 7
-
-//constexpr uint8_t numBottomSectionPixels[NUM_STRIPS] = {150, 150, 150};
-//constexpr uint8_t numTopSectionPixels[NUM_STRIPS] = {50, 50, 50};
-constexpr uint8_t numBottomSectionPixels[NUM_STRIPS] = {15, 96, 150};
-constexpr uint8_t numTopSectionPixels[NUM_STRIPS] = {35, 0, 50};
-
-/*
 #if defined(TARGET_IS_TREE)
-  #define NUM_LEDS 300
-  #define NUM_LEDS_IN_BOTTOM_PART 150
-  #define BRIGHTNESS 200
+  #define NUM_STRIPS 1
+  #define MAX_SECTIONS_PER_STRIP 2
+  #define STRIP_0_CHIPSET WS2812B
+  #define STRIP_0_COLOR_ORDER GRB
+  #define STRIP_0_PIN 2
+  constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {150, 50} };
+  constexpr uint8_t overallBrightness = 255;
 #elif defined(TARGET_IS_CLOUD)
-  #define NUM_LEDS 300
-  #define NUM_LEDS_IN_BOTTOM_PART 150
-  #define BRIGHTNESS 200
+  #define NUM_STRIPS 1
+  #define MAX_SECTIONS_PER_STRIP 1
+  #define STRIP_0_CHIPSET WS2812B
+  #define STRIP_0_COLOR_ORDER GRB
+  #define STRIP_0_PIN 2
+  constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {150} };
+  constexpr uint8_t overallBrightness = 255;
 #elif defined(TARGET_IS_ROSS_DEVL)
-  #define NUM_LEDS 50
-  #define NUM_LEDS_IN_BOTTOM_PART 25
-  #define BRIGHTNESS 64
+  #define NUM_STRIPS 3
+  #define MAX_SECTIONS_PER_STRIP 2
+  #define STRIP_0_CHIPSET WS2812B
+  #define STRIP_0_COLOR_ORDER GRB
+  #define STRIP_0_PIN 2
+  #define STRIP_1_CHIPSET WS2812B
+  #define STRIP_1_COLOR_ORDER GRB
+  #define STRIP_1_PIN 4
+  #define STRIP_2_CHIPSET WS2812B
+  #define STRIP_2_COLOR_ORDER GRB
+  #define STRIP_2_PIN 7
+  constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = {
+    {15, 35},
+    {96, 0},
+    {150, 50}
+  };
+  constexpr uint8_t overallBrightness = 64;
 #else
   #error No target defined.
 #endif
-*/
-
-constexpr uint8_t overallBrightness = 64;
 
 #define LED_FRAMES_PER_SECOND 24
 #define PATTERN_UPDATE_INTERVAL_MS 30
@@ -316,7 +315,10 @@ void pattern15(CRGB* pixelSection, uint8_t numPixelsInSection, uint8_t iStrip, u
 
 void updatePattern()
 {
+  // Lamp test mode overrides the current pattern.
   if (digitalRead(LAMP_TEST_PIN) == LAMP_TEST_ACTIVE) {
+    // Set all pixels in all strips to white at LAMP_TEST_INTENSITY.  (Let's hope
+    // the power supply can handle it.  Otherwise...  Holy brownout, Batman!)
     CRGB lampTestColor = CRGB::White;
     lampTestColor.nscale8_video(LAMP_TEST_INTENSITY);
     for (uint8_t i = 0; i < NUM_STRIPS; ++i) {
@@ -324,7 +326,6 @@ void updatePattern()
         fill_solid(pixels[i], numPixels[i], lampTestColor);
       }
     }
-    // TODO:  set all the pixels to white at LAMP_TEST_INTENSITY
     return;
   }
 
@@ -332,24 +333,14 @@ void updatePattern()
     if (pixels[iStrip] == nullptr) {
       continue;
     }
-    for (uint8_t iSection = 0; iSection < 2; ++iSection) {
+    uint8_t sectionOffset = 0;
+    for (uint8_t iSection = 0; iSection < MAX_SECTIONS_PER_STRIP; ++iSection) {
+      if (numSectionPixels[iStrip][iSection] == 0) {
+        continue;
+      }
  
-      CRGB* pixelSection;
-      uint8_t numPixelsInSection;
-      if (iSection == 0) {
-        if (numBottomSectionPixels[iStrip] == 0) {
-          continue;
-        }
-        pixelSection = pixels[iStrip];
-        numPixelsInSection = numBottomSectionPixels[iStrip];
-      }
-      else {
-        if (numTopSectionPixels[iStrip] == 0) {
-          continue;
-        }
-        pixelSection = pixels[iStrip] + numBottomSectionPixels[iStrip];
-        numPixelsInSection = numTopSectionPixels[iStrip];
-      }
+      CRGB* pixelSection = pixels[iStrip] + sectionOffset;
+      uint8_t numPixelsInSection = numSectionPixels[iStrip][iSection];
 
       switch (currentPatternNum) {
         case 0:
@@ -365,6 +356,8 @@ void updatePattern()
           break;
           // TODO:  turn status LED orange or something because the pattern number is invalid
       }
+
+      sectionOffset += numPixelsInSection;
     }
   }
 }
@@ -563,17 +556,45 @@ void initRadio()
 
 bool initPixels()
 {
+  // Returns false if any strip has too many pixels, or
+  // there isn't sufficient memory for the pixel data.
   bool retval = true;
 
+  // For each pixel strip, calculate the total number of pixels in the strip,
+  // allocate memory for the pixels, and tell FastLED about the strip.
   for (uint8_t i = 0; i < NUM_STRIPS; ++i) {
 
+    // Any strip with a null pixel data pointer or zero pixels will be ignored when
+    // generating patterns and writing data to the strips.  This approach allows us
+    // to attempt to continue operating when one or more strips are misconfigured.
     pixels[i] = nullptr;
+    numPixels[i] = 0;
 
-    numPixels[i] = numBottomSectionPixels[i] + numTopSectionPixels[i];
-    if (numPixels[i] == 0) {
+    // Calculate the number of pixels in the strip.
+    uint16_t numStripPixels = 0;
+    for (uint8_t j = 0; j < MAX_SECTIONS_PER_STRIP; ++j) {
+      numStripPixels += numSectionPixels[i][j];
+    }
+    // Ignore a strip that doesn't have any pixels.
+    if (numStripPixels == 0) {
       continue;
     }
+    // We use 8-bit unsigned integers for pixel indexing, so the number of
+    // pixels in any one strip can't exceed the maximum 8-bit value (255).
+    if (numStripPixels > UINT8_MAX) {
+#ifdef ENABLE_DEBUG_PRINT
+    Serial.print(F("Pixel strip "));
+    Serial.print(i);
+    Serial.print(F(" has too many pixels ("));
+    Serial.print(numStripPixels);
+    Serial.println(F(")"));
+#endif
+      retval = false;
+      continue;
+    }
+    numPixels[i] = numStripPixels;
 
+    // If there is sufficient memory available, allocate memory for the strip's pixels.
     uint16_t availableRam = freeRam() > reservedRamSize ? freeRam() - reservedRamSize : 0;
     uint16_t requiredRam = numPixels[i] * sizeof(CRGB);
 #ifdef ENABLE_DEBUG_PRINT
@@ -590,12 +611,14 @@ bool initPixels()
     }
     else {
 #ifdef ENABLE_DEBUG_PRINT
-      Serial.println(F("*** insufficient RAM for strip"));
+      Serial.print(F("Pixel memory allocation failed for strip "));
+      Serial.println(i);
 #endif
       retval = false;
     }
   }
 
+  // Add the strips to FastLED so that it will send data to them when FastLED.show() is called.
 #if (NUM_STRIPS >= 1)
   if (pixels[0] != nullptr) {
     FastLED.addLeds<STRIP_0_CHIPSET, STRIP_0_PIN, STRIP_0_COLOR_ORDER>(pixels[0], numPixels[0]);
@@ -618,6 +641,8 @@ bool initPixels()
   #error Invalid number of strips configured.
 #endif
 
+  // Although not enforced above, we'll assume that all the strips are of the
+  // same type and should have the same color correction and maximum brightness.
   FastLED.setCorrection(TypicalLEDStrip);
   FastLED.setBrightness(overallBrightness);
 
