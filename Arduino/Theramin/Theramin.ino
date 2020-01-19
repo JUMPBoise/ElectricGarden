@@ -46,10 +46,12 @@ VL53L0X sensor;
 // - higher speed at the cost of lower accuracy OR
 // - higher accuracy at the cost of lower speed
 
-#define HIGH_SPEED
-//#define HIGH_ACCURACY
+#define HIGH_SPEED  // if you choose HIGH_ACCURACY you can hear the steps in pitch
+// #define HIGH_ACCURACY  
 
-const int SPEAKER = 9;
+const int SPEAKER = 9; // use pin D9 on Nano
+
+const int MAXFREQUENCY = 1200;
 
 void setup()
 {
@@ -83,9 +85,17 @@ void setup()
 void loop()
 {
   int dist = sensor.readRangeSingleMillimeters();
-  tone(SPEAKER, dist );
+  
   Serial.print(dist);
-  if (sensor.timeoutOccurred()) { Serial.print(" TIMEOUT"); }
-
+  if (sensor.timeoutOccurred()) { 
+        Serial.print(" TIMEOUT"); 
+        }
   Serial.println();
+
+ if(dist <= MAXFREQUENCY ){
+        tone(SPEAKER, dist );
+        } else {
+              noTone(SPEAKER); // comment out noTone() to sustain last tone
+        }
+        
 }
