@@ -83,8 +83,8 @@
 
 //constexpr uint8_t numBottomSectionPixels[NUM_STRIPS] = {150, 150, 150};
 //constexpr uint8_t numTopSectionPixels[NUM_STRIPS] = {50, 50, 50};
-constexpr uint8_t numBottomSectionPixels[NUM_STRIPS] = {15, 64, 150};
-constexpr uint8_t numTopSectionPixels[NUM_STRIPS] = {35, 32, 50};
+constexpr uint8_t numBottomSectionPixels[NUM_STRIPS] = {15, 96, 150};
+constexpr uint8_t numTopSectionPixels[NUM_STRIPS] = {35, 0, 50};
 
 /*
 #if defined(TARGET_IS_TREE)
@@ -126,8 +126,10 @@ constexpr uint8_t rgbLedHighIntensity = 255;
 // The theremin collects and sends three distance measurements.
 constexpr uint8_t numDistanceMeasmts = 3;
 
-// the maximum distance (in mm) when simulating measurements
-constexpr int16_t maxDistance = 1000;
+// distance measurement range that can be mapped into
+// another range, such as 0-255 hue or intensity
+constexpr int16_t minDistance = 0;
+constexpr int16_t maxDistance = 1023;
 
 // We need to receive at least newPatternRepetitionThreshold consecutive
 // messages with the same new pattern number before we change the pattern.
@@ -276,7 +278,16 @@ void pattern0(CRGB* pixelSection, uint8_t numPixelsInSection, uint8_t iStrip, ui
 /* rainbow */
 void pattern1(CRGB* pixelSection, uint8_t numPixelsInSection, uint8_t iStrip, uint8_t iSection)
 {
-  fill_rainbow(pixelSection, numPixelsInSection, 0, 255 / numPixelsInSection);
+  uint8_t startingHue = map(currentDistance[0], minDistance, maxDistance, 0, 255);
+  
+  constexpr uint8_t minRainbowCompressionFactor = 3;
+  constexpr uint8_t maxRainbowCompressionFactor = 8;
+  uint8_t rainbowLength = map(currentDistance[1], \
+                              minDistance, maxDistance,
+                              numPixelsInSection / minRainbowCompressionFactor, numPixelsInSection / maxRainbowCompressionFactor);
+  uint8_t hueStep = 255 / rainbowLength;
+  
+  fill_rainbow(pixelSection, numPixelsInSection, startingHue, hueStep);
 }
 
 
