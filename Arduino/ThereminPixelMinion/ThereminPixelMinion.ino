@@ -5,7 +5,7 @@
  *                                                                          *
  * Author(s):  Ross Butler                                                  *
  *                                                                          *
- * January 2019                                                             *
+ * January 2020                                                             *
  *                                                                          *
  * based on RF_mesh_TREES_receiver_side (Feb. 2019 version) by Jesse Cordtz *
  * and GardenSpinner (Dec. 2019 version) by Ross Butler                     *
@@ -21,8 +21,8 @@
  * Options *
  ***********/
 
-//#define ENABLE_DEBUG_PRINT
-#define ENABLE_RADIO
+#define ENABLE_DEBUG_PRINT
+//#define ENABLE_RADIO
 #define ENABLE_WATCHDOG
 
 
@@ -47,6 +47,9 @@
 #ifdef ENABLE_DEBUG_PRINT
   #include "printf.h"
 #endif
+
+#include "PixelPattern.h"
+#include "Rainbow.h"
 
 
 
@@ -74,36 +77,31 @@
 #if defined(TARGET_IS_TREE)
   #define NUM_STRIPS 1
   #define MAX_SECTIONS_PER_STRIP 2
-  #define STRIP_0_CHIPSET WS2812B
-  #define STRIP_0_COLOR_ORDER GRB
-  #define STRIP_0_PIN 2
   constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {150, 50} };
   constexpr uint8_t overallBrightness = 255;
 #elif defined(TARGET_IS_CLOUD)
   #define NUM_STRIPS 1
   #define MAX_SECTIONS_PER_STRIP 1
-  #define STRIP_0_CHIPSET WS2812B
-  #define STRIP_0_COLOR_ORDER GRB
-  #define STRIP_0_PIN 2
   constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {150} };
   constexpr uint8_t overallBrightness = 255;
 #elif defined(TARGET_IS_ROSS_DEVL)
   #define NUM_STRIPS 1
-  #define MAX_SECTIONS_PER_STRIP 1
-  #define STRIP_0_CHIPSET WS2812B
-  #define STRIP_0_COLOR_ORDER GRB
-  #define STRIP_0_PIN 2
-//  #define STRIP_1_CHIPSET WS2812B
-//  #define STRIP_1_COLOR_ORDER GRB
-//  #define STRIP_1_PIN 4
-//  #define STRIP_2_CHIPSET WS2812B
-//  #define STRIP_2_COLOR_ORDER GRB
-//  #define STRIP_2_PIN 7
-  constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {96} };
+  #define MAX_SECTIONS_PER_STRIP 2
+  constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {30, 66} };
   constexpr uint8_t overallBrightness = 48;
 #else
   #error No target defined.
 #endif
+
+  #define STRIP_0_CHIPSET WS2812B
+  #define STRIP_0_COLOR_ORDER GRB
+  #define STRIP_0_PIN 2
+  #define STRIP_1_CHIPSET WS2812B
+  #define STRIP_1_COLOR_ORDER GRB
+  #define STRIP_1_PIN 4
+  #define STRIP_2_CHIPSET WS2812B
+  #define STRIP_2_COLOR_ORDER GRB
+  #define STRIP_2_PIN 7
 
 #define LED_FRAMES_PER_SECOND 24
 #define PATTERN_UPDATE_INTERVAL_MS 30
@@ -127,7 +125,7 @@ constexpr uint8_t simulationPatternNum = 1;
 // The intervals are measured in milliseconds.  With an interval of 1 ms,
 // a 10-bit distance measurement will step up and down through its complete
 // range in about 2 seconds.
-constexpr uint32_t simulatedMeasmtUpdateIntervals[numDistanceMeasmts] = {1, 2, 4};
+constexpr uint32_t simulatedMeasmtUpdateIntervals[numDistanceMeasmts] = {2, 4, 6};
 
 // distance measurement range that can be mapped into
 // another range, such as 0-255 hue or intensity
@@ -254,6 +252,8 @@ static RF24 radio(9, 10);    // CE on pin 9, CSN on pin 10, also uses SPI bus (S
 
 static bool usingSimulatedMeasmts;
 
+static PixelPattern* rainbow[NUM_STRIPS][MAX_SECTIONS_PER_STRIP];
+
 
 
 /***********
@@ -286,17 +286,9 @@ void pattern0(CRGB* pixelSection, uint8_t numPixelsInSection, uint8_t iStrip, ui
 /* rainbow */
 void pattern1(CRGB* pixelSection, uint8_t numPixelsInSection, uint8_t iStrip, uint8_t iSection)
 {
-  uint8_t startingHue = map(currentDistance[0], minDistance[0], maxDistance[0], 0, 255);
-
-  constexpr uint8_t rainbowCompressionFactor = 4;
-  uint8_t hueStep = 255 / (numPixelsInSection / rainbowCompressionFactor);
-
-  constexpr uint8_t minRainbowBrightness = 64;
-  constexpr uint8_t maxRainbowBrightness = 255;
-  uint8_t brightness = map(currentDistance[1], minDistance[0], maxDistance[1], minRainbowBrightness, maxRainbowBrightness);
-
-  fill_rainbow(pixelSection, numPixelsInSection, startingHue, hueStep);
-  nscale8_video(pixelSection, numPixelsInSection, brightness);
+  if (rainbow[iStrip][iSection] != nullptr) {
+    rainbow[iStrip][iSection]->update(widgetIsActive);
+  }
 }
 
 
@@ -691,6 +683,44 @@ bool initPixels()
 }
 
 
+void initPatterns()
+{
+  for (uint8_t iStrip = 0; iStrip < NUM_STRIPS; ++iStrip) {
+    if (pixels[iStrip] == nullptr) {
+      continue;
+    }
+    uint8_t sectionOffset = 0;
+    for (uint8_t iSection = 0; iSection < MAX_SECTIONS_PER_STRIP; ++iSection) {
+      if (numSectionPixels[iStrip][iSection] == 0) {
+        continue;
+      }
+ 
+      CRGB* pixelSection = pixels[iStrip] + sectionOffset;
+      uint8_t numPixelsInSection = numSectionPixels[iStrip][iSection];
+
+      rainbow[iStrip][iSection] = new Rainbow(pixelSection,
+                                              numPixelsInSection,
+                                              iStrip,
+                                              iSection,
+                                              numDistanceMeasmts,
+                                              minDistance,
+                                              maxDistance,
+                                              currentDistance);
+
+#ifdef ENABLE_DEBUG_PRINT
+      Serial.print(freeRam());
+      Serial.print(F(" bytes available after instantiating pattern for strip"));
+      Serial.print(iStrip);
+      Serial.print(F(" section "));
+      Serial.println(iSection);
+#endif
+
+      sectionOffset += numPixelsInSection;
+    }
+  }
+}
+
+
 void setup()
 {
 #ifdef ENABLE_DEBUG_PRINT
@@ -702,6 +732,7 @@ void setup()
   initGpios();
   initRadio();
   initPixels();
+  initPatterns();
 
 #ifdef ENABLE_WATCHDOG
   wdt_enable(WDTO_1S);     // enable the watchdog
