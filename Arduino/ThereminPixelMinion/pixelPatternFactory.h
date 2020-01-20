@@ -2,7 +2,7 @@
  *                                                                             *
  * Theremin Pixel Pattern Generator                                            *
  *                                                                             *
- * Rainbow Class - generates a simple rainbow pattern                          *
+ * PixelPattern object factory                                                 *
  *                                                                             *
  * Author(s):  Ross Butler                                                     *
  *                                                                             *
@@ -10,17 +10,21 @@
  *                                                                             *
  *******************************************************************************/
 
+#pragma once
+
+#include "PixelPattern.h"
 #include "Rainbow.h"
+#include "SectionLocator.h"
 
 
-void Rainbow::update(bool widgetIsActive)
+static PixelPattern* pixelPatternFactory(uint8_t patternId)
 {
-  uint8_t startingHue = map(curMeasmts[0], minMeasmtValues[0], maxMeasmtValues[0], 0, 255);
-
-  uint8_t hueStep = 255 / (numPixels / rainbowCompressionFactor);
-
-  uint8_t brightness = map(curMeasmts[1], minMeasmtValues[1], maxMeasmtValues[1], minRainbowBrightness, maxRainbowBrightness);
-
-  fill_rainbow(pixels, numPixels, startingHue, hueStep);
-  nscale8_video(pixels, numPixels, brightness);
+  switch(patternId) {
+    case Rainbow::id:
+      return new Rainbow;
+    case SectionLocator::id:
+      return new SectionLocator;
+    default:
+      return nullptr;
+  }
 }

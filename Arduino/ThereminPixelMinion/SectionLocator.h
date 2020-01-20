@@ -2,7 +2,8 @@
  *                                                                             *
  * Theremin Pixel Pattern Generator                                            *
  *                                                                             *
- * Rainbow Class - generates a simple rainbow pattern                          *
+ * SectionLocator Class - generates a pattern indicating where each pixel      *
+ *                        section is located                                   *
  *                                                                             *
  * Author(s):  Ross Butler                                                     *
  *                                                                             *
@@ -15,26 +16,31 @@
 #include "PixelPattern.h"
 
 
-class Rainbow : public PixelPattern {
+class SectionLocator : public PixelPattern {
 
   public:
 
-    static constexpr uint8_t id = 1;
+    static constexpr uint8_t id = 2;
 
     // Default constructor and destructor don't do anything.
-    Rainbow() {}
-    ~Rainbow() {}
+    SectionLocator() {}
+    ~SectionLocator() {}
           
     // Disable copy constructor and assignment operator.
-    Rainbow(const Rainbow&) = delete;
-    Rainbow& operator =(const Rainbow&) = delete;
+    SectionLocator(const SectionLocator&) = delete;
+    SectionLocator& operator =(const SectionLocator&) = delete;
 
     void update(bool widgetIsActive);
 
   private:
 
-    static constexpr uint8_t rainbowCompressionFactor = 4;
-    static constexpr uint8_t minRainbowBrightness = 64;
-    static constexpr uint8_t maxRainbowBrightness = 255;
+    // colorIdx is shared across all SectionLocator objects.  The object assigned
+    // to strip 0 section 0 sets colorIdx to 0, and all objects increment it after
+    // filling the pixels with the corresponding color.  This causes a different
+    // color to appear in each section--assuming that there are at least as many
+    // elements in colors[] as there are sections.
+    static uint8_t colorIdx;
+
+    static const CRGB colors[6];
 
 };

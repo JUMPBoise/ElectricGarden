@@ -17,60 +17,60 @@
 
 class PixelPattern {
 
-public:
+  public:
 
-  PixelPattern(
-    CRGB* pixels,
-    uint8_t numPixels,
-    uint8_t iStrip,
-    uint8_t iSection,
-    uint8_t numMeasmts,
-    const uint16_t* minMeasmtValues,
-    const uint16_t* maxMeasmtValues,
-    const uint16_t* curMeasmts
-  )
-  : pixels(pixels)
-  , numPixels(numPixels)
-  , stripNum(stripNum)
-  , sectionNum(sectionNum)
-  , numMeasmts(numMeasmts)
-  , minMeasmtValues(minMeasmtValues)
-  , maxMeasmtValues(maxMeasmtValues)
-  , curMeasmts(curMeasmts)
-  {};
+    // Default constructor and destructor don't do anything.
+    PixelPattern() {}
+    virtual ~PixelPattern() {}
 
-  // Default destructor doesn't do anything.
-  virtual ~PixelPattern() {}
+    // Disable copy constructor and assignment operator.
+    PixelPattern(const PixelPattern&) = delete;
+    PixelPattern& operator =(const PixelPattern&) = delete;
 
-  // Disable default constructor, copy constructor, and assignment operator.
-  PixelPattern() = delete;
-  PixelPattern(const PixelPattern&) = delete;
-  PixelPattern& operator =(const PixelPattern&) = delete;
+    void init(
+      CRGB* pixels,
+      uint8_t numPixels,
+      uint8_t stripNum,
+      uint8_t sectionNum,
+      uint8_t numMeasmts,
+      const uint16_t* minMeasmtValues,
+      const uint16_t* maxMeasmtValues,
+      const uint16_t* curMeasmts)
+    {
+      this->pixels = pixels;
+      this->numPixels = numPixels;
+      this->stripNum = stripNum;
+      this->sectionNum = sectionNum;
+      this->numMeasmts = numMeasmts;
+      this->minMeasmtValues = minMeasmtValues;
+      this->maxMeasmtValues = maxMeasmtValues;
+      this->curMeasmts = curMeasmts;
+    };
 
-  // init() is called when the pattern has been selected but before update() is
-  // called.  The pattern can override the default init (which does nothing) if
-  // it needs to do any startup initialization.
-  virtual void init() { return true; };
+    // start() is called when the pattern has been selected but before update() is
+    // called.  The pattern can override the default start (which does nothing) if
+    // it needs to do any startup initialization.
+    virtual void start() {}
 
-  // update() is called when the pattern should render the next frame of pixels.
-  // Because that is pattern-specific, the pattern must implement update().
-  virtual void update(bool widgetIsActive) = 0;
+    // update() is called when the pattern should render the next frame of pixels.
+    // Because that is pattern-specific, the pattern must implement update().
+    virtual void update(bool widgetIsActive) = 0;
 
-protected:
+  protected:
 
-  CRGB* const pixels;        // pointer to the array containing the RGB data that will be sent to the pixels
-  const uint8_t numPixels;   // the number of elements in the pixel data array
-  const uint8_t stripNum;    // strip (0, 1, 2, ...) where the pixels are located
-  const uint8_t sectionNum;  // section (0, 1, 2, ...) within the strip where the pixels are located
+    CRGB* pixels;         // pointer to the array containing the RGB data that will be sent to the pixels
+    uint8_t numPixels;    // the number of elements in the pixel data array
+    uint8_t stripNum;     // strip (0, 1, 2, ...) where the pixels are located
+    uint8_t sectionNum;   // section (0, 1, 2, ...) within the strip where the pixels are located
 
-  const uint8_t numMeasmts;
+    uint8_t numMeasmts;
 
-  // measurement range that can be mapped into another range, such as 0-255 hue or intensity
-  const int16_t* const minMeasmtValues;
-  const int16_t* const maxMeasmtValues;
+    // measurement range that can be mapped into another range, such as 0-255 hue or intensity
+    int16_t* minMeasmtValues;
+    int16_t* maxMeasmtValues;
 
-  const int16_t* const curMeasmts;
+    int16_t* curMeasmts;
 
-private:
+  private:
 
 };
