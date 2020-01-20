@@ -21,8 +21,9 @@
  * Options *
  ***********/
 
+//#define ENABLE_DEBUG_PRINT
+//#define ENABLE_RADIO
 #define ENABLE_WATCHDOG
-#define ENABLE_DEBUG_PRINT
 
 
 
@@ -38,7 +39,10 @@
 
 #include <FastLED.h>
 #include <SPI.h>
+
+#ifdef ENABLE_RADIO
 #include "RF24.h"
+#endif
 
 #ifdef ENABLE_DEBUG_PRINT
   #include "printf.h"
@@ -96,11 +100,11 @@
   #define STRIP_2_COLOR_ORDER GRB
   #define STRIP_2_PIN 7
   constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = {
-    {15, 35},
+    {96, 0},
     {96, 0},
     {150, 50}
   };
-  constexpr uint8_t overallBrightness = 64;
+  constexpr uint8_t overallBrightness = 48;
 #else
   #error No target defined.
 #endif
@@ -118,17 +122,22 @@
 constexpr uint8_t rgbLedLowIntensity = 0;
 constexpr uint8_t rgbLedHighIntensity = 255;
 
-#define SIMULATION_ACTIVE LOW
-#define SIMULATED_MEASUREMENT_UPDATE_INTERVAL_MS 15
-#define SIMULATED_MEASUREMENT_STEP 1
-
 // The theremin collects and sends three distance measurements.
 constexpr uint8_t numDistanceMeasmts = 3;
 
+#define SIMULATION_ACTIVE LOW
+constexpr uint8_t simulationPatternNum = 1;
+// A simulated measurement is incremented or decremented once per interval.
+// The intervals are measured in milliseconds.  With an interval of 1 ms,
+// a 10-bit distance measurement will step up and down through its complete
+// range in about 2 seconds.
+constexpr uint32_t simulatedMeasmtUpdateIntervals[numDistanceMeasmts] = {1, 2, 4};
+
 // distance measurement range that can be mapped into
 // another range, such as 0-255 hue or intensity
-constexpr int16_t minDistance = 0;
-constexpr int16_t maxDistance = 1023;
+// (also defines the range of simulated measurements)
+constexpr int16_t minDistance[numDistanceMeasmts] = {0, 0, 0};
+constexpr int16_t maxDistance[numDistanceMeasmts] = {1023, 1023, 1023};
 
 // We need to receive at least newPatternRepetitionThreshold consecutive
 // messages with the same new pattern number before we change the pattern.
@@ -243,7 +252,11 @@ static bool widgetIsActive;
 static uint8_t currentPatternNum;
 static int16_t currentDistance[numDistanceMeasmts];
 
+#ifdef ENABLE_RADIO
 static RF24 radio(9, 10);    // CE on pin 9, CSN on pin 10, also uses SPI bus (SCK on 13, MISO on 12, MOSI on 11)
+#endif
+
+static bool usingSimulatedMeasmts;
 
 
 
@@ -277,14 +290,14 @@ void pattern0(CRGB* pixelSection, uint8_t numPixelsInSection, uint8_t iStrip, ui
 /* rainbow */
 void pattern1(CRGB* pixelSection, uint8_t numPixelsInSection, uint8_t iStrip, uint8_t iSection)
 {
-  uint8_t startingHue = map(currentDistance[0], minDistance, maxDistance, 0, 255);
+  uint8_t startingHue = map(currentDistance[0], minDistance[0], maxDistance[0], 0, 255);
 
   constexpr uint8_t rainbowCompressionFactor = 4;
   uint8_t hueStep = 255 / (numPixelsInSection / rainbowCompressionFactor);
 
   constexpr uint8_t minRainbowBrightness = 64;
   constexpr uint8_t maxRainbowBrightness = 255;
-  uint8_t brightness = map(currentDistance[1], minDistance, maxDistance, minRainbowBrightness, maxRainbowBrightness);
+  uint8_t brightness = map(currentDistance[1], minDistance[0], maxDistance[1], minRainbowBrightness, maxRainbowBrightness);
 
   fill_rainbow(pixelSection, numPixelsInSection, startingHue, hueStep);
   nscale8_video(pixelSection, numPixelsInSection, brightness);
@@ -441,6 +454,8 @@ bool handleMeasurementVectorPayload(const MeasurementVectorPayload* payload, uin
 
 void pollRadio()
 {
+#ifdef ENABLE_RADIO
+
   uint8_t pipeNum;
   if (!radio.available(&pipeNum)) {
     return;
@@ -481,6 +496,8 @@ void pollRadio()
   }
 
   // TODO:  turn the status LED red if we didn't get a valid payload
+
+#endif
 }
 
 
@@ -489,18 +506,42 @@ void pollRadio()
  * Measurement Simulation *
  **************************/
 
-void updateSimulatedMeasurements()
+void updateSimulatedMeasmts(bool doInit)
 {
-  EVERY_N_MILLISECONDS(SIMULATED_MEASUREMENT_UPDATE_INTERVAL_MS) {
-    // TODO:  make this more varied and realistic
+  static bool simulatedMeasmtGoingUp[numDistanceMeasmts];
+  static int32_t nextSimulatedMeasmtUpdateMs[numDistanceMeasmts];
+
+  uint32_t now = millis();
+
+  if (doInit) {
     for (uint8_t i = 0; i < numDistanceMeasmts; ++i) {
-      currentDistance[i] += SIMULATED_MEASUREMENT_STEP;
-      if (currentDistance[i] >= maxDistance) {
-        currentDistance[i] = 0;
+      nextSimulatedMeasmtUpdateMs[i] = now;
+    }
+      currentPatternNum = simulationPatternNum;
+  }
+
+  for (uint8_t i = 0; i < numDistanceMeasmts; ++i) {
+    if ((int32_t) (now - nextSimulatedMeasmtUpdateMs[i]) >= 0) {
+      nextSimulatedMeasmtUpdateMs[i] += simulatedMeasmtUpdateIntervals[i];
+
+      // Reverse direction if the current measurement is at or outside its range.
+      if (simulatedMeasmtGoingUp[i] && currentDistance[i] >= maxDistance[i]) {
+        simulatedMeasmtGoingUp[i] = false;
+      }
+      else if (!simulatedMeasmtGoingUp[i] && currentDistance[i] <= minDistance[i]) {
+        simulatedMeasmtGoingUp[i] = true;
+      }
+
+      if (simulatedMeasmtGoingUp[i]) {
+        ++currentDistance[i];
+      }
+      else {
+        --currentDistance[i];
       }
     }
-    widgetIsActive = true;
   }
+
+  widgetIsActive = true;
 }
 
 
@@ -528,6 +569,8 @@ void initGpios()
 
 void initRadio()
 {
+#ifdef ENABLE_RADIO
+
   Serial.println(F("Initializing radio..."));    
   radio.begin();
 
@@ -551,6 +594,8 @@ void initRadio()
   radio.startListening();
 
   Serial.println(F("Radio initialized."));    
+
+#endif
 }
 
 
@@ -675,12 +720,22 @@ void setup()
 
 void loop()
 {
+#ifdef ENABLE_RADIO
   if (digitalRead(SIMULATION_PIN) == SIMULATION_ACTIVE) {
-    updateSimulatedMeasurements();
+    // If we are just starting to use simulated measurements, usingSimulatedMeasmts
+    // will be false at this point, so passing !usingSimulatedMeasmts to
+    // updateSimulatedMeasmts tells it to do initialization.
+    updateSimulatedMeasmts(!usingSimulatedMeasmts);
+    usingSimulatedMeasmts = true;
   }
   else {
+    usingSimulatedMeasmts = false;
     pollRadio();
   }
+#else
+  updateSimulatedMeasmts(!usingSimulatedMeasmts);
+  usingSimulatedMeasmts = true;
+#endif
 
   // Periodically update the pattern.
   EVERY_N_MILLISECONDS(PATTERN_UPDATE_INTERVAL_MS) {
