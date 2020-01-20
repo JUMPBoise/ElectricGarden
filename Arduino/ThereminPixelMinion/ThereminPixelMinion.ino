@@ -22,7 +22,7 @@
  ***********/
 
 //#define ENABLE_DEBUG_PRINT
-//#define ENABLE_RADIO
+#define ENABLE_RADIO
 #define ENABLE_WATCHDOG
 
 
@@ -88,22 +88,18 @@
   constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {150} };
   constexpr uint8_t overallBrightness = 255;
 #elif defined(TARGET_IS_ROSS_DEVL)
-  #define NUM_STRIPS 3
-  #define MAX_SECTIONS_PER_STRIP 2
+  #define NUM_STRIPS 1
+  #define MAX_SECTIONS_PER_STRIP 1
   #define STRIP_0_CHIPSET WS2812B
   #define STRIP_0_COLOR_ORDER GRB
   #define STRIP_0_PIN 2
-  #define STRIP_1_CHIPSET WS2812B
-  #define STRIP_1_COLOR_ORDER GRB
-  #define STRIP_1_PIN 4
-  #define STRIP_2_CHIPSET WS2812B
-  #define STRIP_2_COLOR_ORDER GRB
-  #define STRIP_2_PIN 7
-  constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = {
-    {96, 0},
-    {96, 0},
-    {150, 50}
-  };
+//  #define STRIP_1_CHIPSET WS2812B
+//  #define STRIP_1_COLOR_ORDER GRB
+//  #define STRIP_1_PIN 4
+//  #define STRIP_2_CHIPSET WS2812B
+//  #define STRIP_2_COLOR_ORDER GRB
+//  #define STRIP_2_PIN 7
+  constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {96} };
   constexpr uint8_t overallBrightness = 48;
 #else
   #error No target defined.
@@ -142,7 +138,7 @@ constexpr int16_t maxDistance[numDistanceMeasmts] = {1023, 1023, 1023};
 // We need to receive at least newPatternRepetitionThreshold consecutive
 // messages with the same new pattern number before we change the pattern.
 // This should prevent unwanted flashing if a bad message is received.  (It
-// is rare, but a corrupt message can make it through the NRF24L01's CRC check.)
+// isn't rare that a corrupt message makes it through the NRF24L01's CRC check.)
 constexpr uint8_t newPatternRepetitionThreshold = 3;
 
 // free memory that must remain after allocating pixel data arrays
