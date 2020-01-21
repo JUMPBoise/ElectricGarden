@@ -1,0 +1,30 @@
+
+From http://www.mosaic-industries.com/
+
+I2C Bus Electrical Specifications
+
+The cable length limit for an I²C (IIC or I2C) serial bus is inversely proportional to the bus speed or clock rate.
+
+For a given data rate, the maximum number of devices on the bus is limited by the capacitance on the SDA and SCL pins, and is also a function of the pull-up resistance values on the SDA and SCL lines. 4.7 Kohm pull-ups are installed on the SDA and SCL lines on the PDQ Board. Using the default pull-up values, the PDQ Board’s I2C port is capable of data transfer rates up to 100 kilobits per second with maximum bus loading of 170 picofarads (pF). Adding parallel 3.3K resistors to the SDA and SCL lines brings the equivalent pull-up resistance down to 2K, and allows 100 KHz signaling with bus capacitance as high as 400 pF. The HCS12 MCU can generate data rates up to 1 megabit per second, but accurate data exchange at these high rates requires very low bus loading (say, under 40 pF with 2K pull-ups). Lowering capacitive loading to these levels is difficult, and requires short cable lengths and very few peripheral devices on the I2C bus.
+
+For reference, shielded 22 AWG twisted pair cables have capacitance in the range of 100-240 pF/m. So the maximum bus length of an I2C link is about 1 meter at 100 Kbaud, or 10 meters at 10 Kbaud. Unshielded cable typically has much less capacitance, but should only be used within an otherwise shielded enclosure.
+
+___________________________________________________________________________________________________________
+
+from https://electronics.stackexchange.com/questions/106265/maximum-i2c-bus-length :
+
+The key is to know your input voltage threshold. Make sure the voltage drop in the ground lead is well below this, or else a transmitter at a high ground potential will not be able to pull the voltage low enough. Lack of tolerance for ground offsets IMHO is the biggest reason to use RS485 or can transceivers (I2C over CAN is mentioned in a few application notes).
+
+Ideally, all devices will have their own wall wart and battery and no power will be sent over the ground wire between devices.
+
+But, lets take CAT5 for example. CAT5 can't be higher than 52pf/m, or it isn't CAT5.
+
+100m of 52pf cable has a capacitance of 5200pf or 5.2nf.
+
+5.2n times 20kohms (pullup) gives a time constant of about 104 microseconds. That limits speed to about 10kHz or so.
+
+Using 2.2kohm pullups, you could probably get to 100kHz.
+
+I have heard that devices should have a resistor on SDL and SCK, because of the big capacitive load they are driving, of something like 180 or 200 ohms.
+
+But honestly, I2C is not at all the way to go for long distances. CAN transceivers or RS485 used with normal UART is a robust solution with very good fault protection, ESD resistance, speed, distance, etc, at a cost of a dollar a chip or so, ground offsets don't matter nearly as much so you are free to carry power along with data.
