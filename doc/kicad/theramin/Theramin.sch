@@ -1,0 +1,244 @@
+EESchema Schematic File Version 4
+EELAYER 30 0
+EELAYER END
+$Descr A4 11693 8268
+encoding utf-8
+Sheet 1 1
+Title ""
+Date ""
+Rev ""
+Comp ""
+Comment1 ""
+Comment2 ""
+Comment3 ""
+Comment4 ""
+$EndDescr
+Text Label 7500 7510 0    79   ~ 0
+THERAMIN
+Text Label 8320 7510 0    79   ~ 0
+JUMP-ELECTRIC_GARDEN
+Text Label 8220 7650 0    71   ~ 0
+1-21-2020
+Text Label 10330 7510 0    71   ~ 0
+by:_C.Spindler
+$Comp
+L LIBRARY1:XL53L0X_POLOLU A?
+U 1 1 5E276D26
+P 2060 1640
+F 0 "A?" H 1993 1765 50  0000 C CNN
+F 1 "XL53L0X_POLOLU" H 1993 1674 50  0000 C CNN
+F 2 "" H 2060 1640 50  0001 C CNN
+F 3 "" H 2060 1640 50  0001 C CNN
+	1    2060 1640
+	1    0    0    -1  
+$EndComp
+$Comp
+L LIBRARY1:XL53L0X_POLOLU A?
+U 1 1 5E278013
+P 2080 2920
+F 0 "A?" H 2013 3045 50  0000 C CNN
+F 1 "XL53L0X_POLOLU" H 2013 2954 50  0000 C CNN
+F 2 "" H 2080 2920 50  0001 C CNN
+F 3 "" H 2080 2920 50  0001 C CNN
+	1    2080 2920
+	1    0    0    -1  
+$EndComp
+$Comp
+L MCU_Module:Arduino_Nano_v3.x A1
+U 1 1 5E27AF5A
+P 4950 3410
+F 0 "A1" H 4950 2321 50  0000 C CNN
+F 1 "Arduino_Nano_v3.x" H 4410 4380 50  0000 C CNN
+F 2 "Module:Arduino_Nano" H 4950 3410 50  0001 C CIN
+F 3 "http://www.mouser.com/pdfdocs/Gravitech_Arduino_Nano3_0.pdf" H 4950 3410 50  0001 C CNN
+	1    4950 3410
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:GND #PWR?
+U 1 1 5E27D115
+P 2960 1940
+F 0 "#PWR?" H 2960 1690 50  0001 C CNN
+F 1 "GND" H 2970 1790 50  0000 C CNN
+F 2 "" H 2960 1940 50  0001 C CNN
+F 3 "" H 2960 1940 50  0001 C CNN
+	1    2960 1940
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:GND #PWR?
+U 1 1 5E27DC62
+P 2960 3210
+F 0 "#PWR?" H 2960 2960 50  0001 C CNN
+F 1 "GND" H 2965 3037 50  0000 C CNN
+F 2 "" H 2960 3210 50  0001 C CNN
+F 3 "" H 2960 3210 50  0001 C CNN
+	1    2960 3210
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:GND #PWR?
+U 1 1 5E27E658
+P 5050 4500
+F 0 "#PWR?" H 5050 4250 50  0001 C CNN
+F 1 "GND" H 5055 4327 50  0000 C CNN
+F 2 "" H 5050 4500 50  0001 C CNN
+F 3 "" H 5050 4500 50  0001 C CNN
+	1    5050 4500
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	2260 1940 2960 1940
+Wire Wire Line
+	2280 3220 2960 3220
+Wire Wire Line
+	2960 3220 2960 3210
+Wire Wire Line
+	5150 2410 5150 1840
+Wire Wire Line
+	5150 1840 3200 1840
+Wire Wire Line
+	2280 3120 3200 3120
+Wire Wire Line
+	3200 3120 3200 1840
+Connection ~ 3200 1840
+Wire Wire Line
+	3200 1840 2260 1840
+Wire Wire Line
+	5450 3810 6010 3810
+Wire Wire Line
+	6010 3810 6010 2230
+Wire Wire Line
+	6010 2230 2740 2230
+Wire Wire Line
+	2740 2230 2740 2040
+Wire Wire Line
+	2740 2040 2260 2040
+Wire Wire Line
+	2280 3320 2740 3320
+Wire Wire Line
+	2740 3320 2740 2230
+Connection ~ 2740 2230
+Wire Wire Line
+	5460 3910 6110 3910
+Wire Wire Line
+	6110 3910 6110 2140
+Wire Wire Line
+	6110 2140 2630 2140
+Wire Wire Line
+	2630 3420 2280 3420
+Wire Wire Line
+	2630 2140 2630 3420
+Connection ~ 2630 2140
+Wire Wire Line
+	2630 2140 2260 2140
+Wire Wire Line
+	4450 3210 4100 3210
+Wire Wire Line
+	4100 3210 4100 3520
+Wire Wire Line
+	4100 3520 2280 3520
+Wire Wire Line
+	4450 3110 4100 3110
+Wire Wire Line
+	4100 3110 4100 2900
+Wire Wire Line
+	4100 2900 2530 2900
+Wire Wire Line
+	2530 2900 2530 2240
+Wire Wire Line
+	2530 2240 2260 2240
+$Comp
+L power:+5V #PWR?
+U 1 1 5E28912B
+P 4850 2410
+F 0 "#PWR?" H 4850 2260 50  0001 C CNN
+F 1 "+5V" H 4930 2540 50  0000 C CNN
+F 2 "" H 4850 2410 50  0001 C CNN
+F 3 "" H 4850 2410 50  0001 C CNN
+	1    4850 2410
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	5050 4410 5050 4500
+$Comp
+L Connector:Screw_Terminal_01x02 J?
+U 1 1 5E28C5E6
+P 1390 4690
+F 0 "J?" H 1308 4365 50  0000 C CNN
+F 1 "Screw_Terminal" H 1308 4456 50  0000 C CNN
+F 2 "" H 1390 4690 50  0001 C CNN
+F 3 "~" H 1390 4690 50  0001 C CNN
+	1    1390 4690
+	-1   0    0    1   
+$EndComp
+$Comp
+L power:GND #PWR?
+U 1 1 5E28EBEE
+P 1590 4690
+F 0 "#PWR?" H 1590 4440 50  0001 C CNN
+F 1 "GND" H 1595 4517 50  0000 C CNN
+F 2 "" H 1590 4690 50  0001 C CNN
+F 3 "" H 1590 4690 50  0001 C CNN
+	1    1590 4690
+	1    0    0    -1  
+$EndComp
+Text Label 1280 4140 0    71   ~ 0
+local
+Text Label 1280 4270 0    71   ~ 0
+speaker
+$Comp
+L Device:R R?
+U 1 1 5E291B8C
+P 1990 4590
+F 0 "R?" V 1783 4590 50  0000 C CNN
+F 1 "220" V 1874 4590 50  0000 C CNN
+F 2 "" V 1920 4590 50  0001 C CNN
+F 3 "~" H 1990 4590 50  0001 C CNN
+	1    1990 4590
+	0    1    1    0   
+$EndComp
+$Comp
+L Device:R_POT 10k
+U 1 1 5E292D4D
+P 2580 4590
+F 0 "10k" V 2373 4590 50  0000 C CNN
+F 1 "R_POT" V 2464 4590 50  0000 C CNN
+F 2 "" H 2580 4590 50  0001 C CNN
+F 3 "~" H 2580 4590 50  0001 C CNN
+	1    2580 4590
+	0    1    1    0   
+$EndComp
+Wire Wire Line
+	4450 3410 4180 3410
+Wire Wire Line
+	4180 3410 4180 4590
+Wire Wire Line
+	4180 4590 2730 4590
+Wire Wire Line
+	2430 4590 2140 4590
+Wire Wire Line
+	1840 4590 1590 4590
+$Comp
+L Potentiometer_Digital:MCP42010 U?
+U 1 1 5E295A97
+P 5070 5960
+F 0 "U?" H 5070 6641 50  0000 C CNN
+F 1 "MCP4231_10k" H 5070 6550 50  0000 C CNN
+F 2 "" H 5070 6060 50  0001 C CNN
+F 3 "http://ww1.microchip.com/downloads/en/DeviceDoc/11195c.pdf" H 5070 6060 50  0001 C CNN
+	1    5070 5960
+	1    0    0    -1  
+$EndComp
+$Comp
+L Potentiometer_Digital:MCP42010 U?
+U 1 1 5E297196
+P 1490 6970
+F 0 "U?" H 1490 7651 50  0000 C CNN
+F 1 "MCP42010" H 1490 7560 50  0000 C CNN
+F 2 "" H 1490 7070 50  0001 C CNN
+F 3 "http://ww1.microchip.com/downloads/en/DeviceDoc/11195c.pdf" H 1490 7070 50  0001 C CNN
+	1    1490 6970
+	1    0    0    -1  
+$EndComp
+$EndSCHEMATC
