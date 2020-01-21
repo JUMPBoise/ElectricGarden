@@ -1,11 +1,10 @@
-
 /****************************************************************************
  *                                                                          *
  * Theremin Pixel Pattern Generator                                         *
  *                                                                          *
  * Author(s):  Ross Butler                                                  *
  *                                                                          *
- * January 2019                                                             *
+ * January 2020                                                             *
  *                                                                          *
  * based on RF_mesh_TREES_receiver_side (Feb. 2019 version) by Jesse Cordtz *
  * and GardenSpinner (Dec. 2019 version) by Ross Butler                     *
@@ -13,7 +12,7 @@
  ****************************************************************************/
 
 
-// TODO:  force pattern 1 if no data received for some predetermined period (5 seconds or so)
+// TODO:  force the default pattern if no data received for some predetermined period (5 seconds or so)
 // TODO:  get status led stuff from JohnsKaleidoscopeMirror
 
 
@@ -21,8 +20,9 @@
  * Options *
  ***********/
 
+//#define ENABLE_DEBUG_PRINT
+#define ENABLE_RADIO
 #define ENABLE_WATCHDOG
-#define ENABLE_DEBUG_PRINT
 
 
 
@@ -38,11 +38,17 @@
 
 #include <FastLED.h>
 #include <SPI.h>
+
+#ifdef ENABLE_RADIO
 #include "RF24.h"
+#endif
 
 #ifdef ENABLE_DEBUG_PRINT
   #include "printf.h"
 #endif
+
+#include "PixelPattern.h"
+#include "pixelPatternFactory.h"
 
 
 
@@ -70,40 +76,31 @@
 #if defined(TARGET_IS_TREE)
   #define NUM_STRIPS 1
   #define MAX_SECTIONS_PER_STRIP 2
-  #define STRIP_0_CHIPSET WS2812B
-  #define STRIP_0_COLOR_ORDER GRB
-  #define STRIP_0_PIN 2
   constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {150, 50} };
   constexpr uint8_t overallBrightness = 255;
 #elif defined(TARGET_IS_CLOUD)
   #define NUM_STRIPS 1
   #define MAX_SECTIONS_PER_STRIP 1
-  #define STRIP_0_CHIPSET WS2812B
-  #define STRIP_0_COLOR_ORDER GRB
-  #define STRIP_0_PIN 2
   constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {150} };
   constexpr uint8_t overallBrightness = 255;
 #elif defined(TARGET_IS_ROSS_DEVL)
-  #define NUM_STRIPS 3
+  #define NUM_STRIPS 1
   #define MAX_SECTIONS_PER_STRIP 2
-  #define STRIP_0_CHIPSET WS2812B
-  #define STRIP_0_COLOR_ORDER GRB
-  #define STRIP_0_PIN 2
-  #define STRIP_1_CHIPSET WS2812B
-  #define STRIP_1_COLOR_ORDER GRB
-  #define STRIP_1_PIN 4
-  #define STRIP_2_CHIPSET WS2812B
-  #define STRIP_2_COLOR_ORDER GRB
-  #define STRIP_2_PIN 7
-  constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = {
-    {15, 35},
-    {96, 0},
-    {150, 50}
-  };
-  constexpr uint8_t overallBrightness = 64;
+  constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {30, 66} };
+  constexpr uint8_t overallBrightness = 48;
 #else
   #error No target defined.
 #endif
+
+#define STRIP_0_CHIPSET WS2812B
+#define STRIP_0_COLOR_ORDER GRB
+#define STRIP_0_PIN 2
+#define STRIP_1_CHIPSET WS2812B
+#define STRIP_1_COLOR_ORDER GRB
+#define STRIP_1_PIN 4
+#define STRIP_2_CHIPSET WS2812B
+#define STRIP_2_COLOR_ORDER GRB
+#define STRIP_2_PIN 7
 
 #define LED_FRAMES_PER_SECOND 24
 #define PATTERN_UPDATE_INTERVAL_MS 30
@@ -118,22 +115,27 @@
 constexpr uint8_t rgbLedLowIntensity = 0;
 constexpr uint8_t rgbLedHighIntensity = 255;
 
-#define SIMULATION_ACTIVE LOW
-#define SIMULATED_MEASUREMENT_UPDATE_INTERVAL_MS 15
-#define SIMULATED_MEASUREMENT_STEP 1
-
 // The theremin collects and sends three distance measurements.
 constexpr uint8_t numDistanceMeasmts = 3;
 
+#define SIMULATION_ACTIVE LOW
+constexpr uint8_t simulationPatternId = Rainbow::id;
+// A simulated measurement is incremented or decremented once per interval.
+// The intervals are measured in milliseconds.  With an interval of 1 ms,
+// a 10-bit distance measurement will step up and down through its complete
+// range in about 2 seconds.
+constexpr uint32_t simulatedMeasmtUpdateIntervals[numDistanceMeasmts] = {2, 4, 6};
+
 // distance measurement range that can be mapped into
 // another range, such as 0-255 hue or intensity
-constexpr int16_t minDistance = 0;
-constexpr int16_t maxDistance = 1023;
+// (also defines the range of simulated measurements)
+constexpr int16_t minDistance[numDistanceMeasmts] = {0, 0, 0};
+constexpr int16_t maxDistance[numDistanceMeasmts] = {1023, 1023, 1023};
 
 // We need to receive at least newPatternRepetitionThreshold consecutive
 // messages with the same new pattern number before we change the pattern.
 // This should prevent unwanted flashing if a bad message is received.  (It
-// is rare, but a corrupt message can make it through the NRF24L01's CRC check.)
+// isn't rare that a corrupt message makes it through the NRF24L01's CRC check.)
 constexpr uint8_t newPatternRepetitionThreshold = 3;
 
 // free memory that must remain after allocating pixel data arrays
@@ -145,6 +147,14 @@ constexpr int16_t minValidPatternNum = 0;
 constexpr int16_t maxValidPatternNum = 255;
 constexpr int16_t minValidDistance = 0;
 constexpr int16_t maxValidDistance = 4000;
+
+// the list of patterns that can be selected and displayed
+constexpr uint8_t patternIds[] = {Rainbow::id, SectionLocator::id};
+constexpr uint8_t numPatternIds = sizeof(patternIds) / sizeof(uint8_t);
+
+// The defaut pattern is the active pattern upon startup and remains the active
+// pattern until measurements with a different pattern id are received or simulated.
+constexpr uint8_t defaultPatternId = Rainbow::id;
 
 
 
@@ -240,10 +250,16 @@ static uint8_t numPixels[NUM_STRIPS];
 static CRGB* pixels[NUM_STRIPS];
 
 static bool widgetIsActive;
-static uint8_t currentPatternNum;
+static uint8_t activePatternId;
 static int16_t currentDistance[numDistanceMeasmts];
 
+#ifdef ENABLE_RADIO
 static RF24 radio(9, 10);    // CE on pin 9, CSN on pin 10, also uses SPI bus (SCK on 13, MISO on 12, MOSI on 11)
+#endif
+
+static bool usingSimulatedMeasmts;
+
+static PixelPattern* patternObjects[numPatternIds][NUM_STRIPS][MAX_SECTIONS_PER_STRIP];
 
 
 
@@ -263,53 +279,39 @@ uint16_t freeRam()
 
 
 
-/************
- * Patterns *
- ************/
+/*********************
+ * Pattern Rendering *
+ *********************/
 
-/* all off */
-void pattern0(CRGB* pixelSection, uint8_t numPixelsInSection, uint8_t iStrip, uint8_t iSection)
+void startPattern()
 {
-  fill_solid(pixelSection, numPixelsInSection, CRGB::Black);
-}
-
-
-/* rainbow */
-void pattern1(CRGB* pixelSection, uint8_t numPixelsInSection, uint8_t iStrip, uint8_t iSection)
-{
-  uint8_t startingHue = map(currentDistance[0], minDistance, maxDistance, 0, 255);
-
-  constexpr uint8_t rainbowCompressionFactor = 4;
-  uint8_t hueStep = 255 / (numPixelsInSection / rainbowCompressionFactor);
-
-  constexpr uint8_t minRainbowBrightness = 64;
-  constexpr uint8_t maxRainbowBrightness = 255;
-  uint8_t brightness = map(currentDistance[1], minDistance, maxDistance, minRainbowBrightness, maxRainbowBrightness);
-
-  fill_rainbow(pixelSection, numPixelsInSection, startingHue, hueStep);
-  nscale8_video(pixelSection, numPixelsInSection, brightness);
-}
-
-
-/* section highlight */
-void pattern15(CRGB* pixelSection, uint8_t numPixelsInSection, uint8_t iStrip, uint8_t iSection)
-{
-  static uint8_t colorIdx;
-  const CRGB colors[] = {CRGB::Red, CRGB::Yellow, CRGB::Green, CRGB::Cyan, CRGB::Blue, CRGB::Purple};
-
-  // Always start at the first color when doing the first section of the
-  // first strip.  This makes the pattern static instead of flickering.
-  if (iStrip == 0 && iSection == 0) {
-    colorIdx = 0;
+  for (uint8_t iPattern = 0; iPattern < numPatternIds; ++iPattern) {
+    if (patternIds[iPattern] != activePatternId) {
+      continue;
+    }
+    for (uint8_t iStrip = 0; iStrip < NUM_STRIPS; ++iStrip) {
+      if (pixels[iStrip] == nullptr) {
+        continue;
+      }
+      for (uint8_t iSection = 0; iSection < MAX_SECTIONS_PER_STRIP; ++iSection) {
+        if (numSectionPixels[iStrip][iSection] == 0) {
+          continue;
+        }
+        if (patternObjects[iPattern][iStrip][iSection] != nullptr) {
+#ifdef ENABLE_DEBUG_PRINT
+          Serial.print(F("calling start for pattern id "));
+          Serial.print(patternIds[iPattern]);
+          Serial.print(F(", strip "));
+          Serial.print(iStrip);
+          Serial.print(F(", section "));
+          Serial.println(iSection);
+#endif
+          patternObjects[iPattern][iStrip][iSection]->start();
+        }
+      }
+    }
   }
 
-  fill_solid(pixelSection, numPixelsInSection, colors[colorIdx]);
-  pixelSection[0] = CRGB::White;
-  pixelSection[numPixelsInSection - 1] = CRGB::White;
-
-  if (++colorIdx >= sizeof(colors) / sizeof(CRGB)) {
-    colorIdx = 0;
-  }
 }
 
 
@@ -329,37 +331,34 @@ void updatePattern()
     return;
   }
 
-  for (uint8_t iStrip = 0; iStrip < NUM_STRIPS; ++iStrip) {
-    if (pixels[iStrip] == nullptr) {
-      continue;
-    }
-    uint8_t sectionOffset = 0;
-    for (uint8_t iSection = 0; iSection < MAX_SECTIONS_PER_STRIP; ++iSection) {
-      if (numSectionPixels[iStrip][iSection] == 0) {
-        continue;
+  // Pattern 255 turns everything off.
+  if (activePatternId == 255) {
+    for (uint8_t iStrip = 0; iStrip < NUM_STRIPS; ++iStrip) {
+      if (pixels[iStrip] != nullptr) {
+        fill_solid(pixels[iStrip], numPixels[iStrip], CRGB::Black);
       }
- 
-      CRGB* pixelSection = pixels[iStrip] + sectionOffset;
-      uint8_t numPixelsInSection = numSectionPixels[iStrip][iSection];
-
-      switch (currentPatternNum) {
-        case 0:
-          pattern0(pixelSection, numPixelsInSection, iStrip, iSection);
-          break;
-        case 1:
-          pattern1(pixelSection, numPixelsInSection, iStrip, iSection);
-          break;
-        case 15:
-          pattern15(pixelSection, numPixelsInSection, iStrip, iSection);
-          break;
-        default:
-          break;
-          // TODO:  turn status LED orange or something because the pattern number is invalid
-      }
-
-      sectionOffset += numPixelsInSection;
     }
   }
+
+  for (uint8_t iPattern = 0; iPattern < numPatternIds; ++iPattern) {
+    if (patternIds[iPattern] != activePatternId) {
+      continue;
+    }
+    for (uint8_t iStrip = 0; iStrip < NUM_STRIPS; ++iStrip) {
+      if (pixels[iStrip] == nullptr) {
+        continue;
+      }
+      for (uint8_t iSection = 0; iSection < MAX_SECTIONS_PER_STRIP; ++iSection) {
+        if (numSectionPixels[iStrip][iSection] == 0) {
+          continue;
+        }
+        if (patternObjects[iPattern][iStrip][iSection] != nullptr) {
+          patternObjects[iPattern][iStrip][iSection]->update(widgetIsActive);
+        }
+      }
+    }
+  }
+
 }
 
 
@@ -406,15 +405,16 @@ bool handleMeasurementVectorPayload(const MeasurementVectorPayload* payload, uin
   if (payload->widgetHeader.isActive) {
     widgetIsActive = true;
 
-    // Update currentPatternNum only if we've received the same new pattern number multiple times.
-    uint8_t newPatternNum = (uint8_t) payload->measurements[0];
-    if (newPatternNum != currentPatternNum && ++newPatternRepetitionCount >= newPatternRepetitionThreshold) {
+    // Update activePatternId only if we've received the same new pattern number multiple times.
+    uint8_t newPatternId = (uint8_t) payload->measurements[0];
+    if (newPatternId != activePatternId && ++newPatternRepetitionCount >= newPatternRepetitionThreshold) {
       newPatternRepetitionCount = 0;
-      currentPatternNum = newPatternNum;
+      activePatternId = newPatternId;
 #ifdef ENABLE_DEBUG_PRINT
-      Serial.print(F("got new pattern "));
-      Serial.println(newPatternNum);
+      Serial.print(F("got new pattern id "));
+      Serial.println(newPatternId);
 #endif
+      startPattern();
     }
 
     for (uint8_t i = 0; i < numDistanceMeasmts; ++i) {
@@ -441,6 +441,8 @@ bool handleMeasurementVectorPayload(const MeasurementVectorPayload* payload, uin
 
 void pollRadio()
 {
+#ifdef ENABLE_RADIO
+
   uint8_t pipeNum;
   if (!radio.available(&pipeNum)) {
     return;
@@ -481,6 +483,8 @@ void pollRadio()
   }
 
   // TODO:  turn the status LED red if we didn't get a valid payload
+
+#endif
 }
 
 
@@ -489,18 +493,43 @@ void pollRadio()
  * Measurement Simulation *
  **************************/
 
-void updateSimulatedMeasurements()
+void updateSimulatedMeasmts(bool doInit)
 {
-  EVERY_N_MILLISECONDS(SIMULATED_MEASUREMENT_UPDATE_INTERVAL_MS) {
-    // TODO:  make this more varied and realistic
+  static bool simulatedMeasmtGoingUp[numDistanceMeasmts];
+  static int32_t nextSimulatedMeasmtUpdateMs[numDistanceMeasmts];
+
+  uint32_t now = millis();
+
+  if (doInit) {
     for (uint8_t i = 0; i < numDistanceMeasmts; ++i) {
-      currentDistance[i] += SIMULATED_MEASUREMENT_STEP;
-      if (currentDistance[i] >= maxDistance) {
-        currentDistance[i] = 0;
+      nextSimulatedMeasmtUpdateMs[i] = now;
+    }
+      activePatternId = simulationPatternId;
+      startPattern();
+  }
+
+  for (uint8_t i = 0; i < numDistanceMeasmts; ++i) {
+    if ((int32_t) (now - nextSimulatedMeasmtUpdateMs[i]) >= 0) {
+      nextSimulatedMeasmtUpdateMs[i] += simulatedMeasmtUpdateIntervals[i];
+
+      // Reverse direction if the current measurement is at or outside its range.
+      if (simulatedMeasmtGoingUp[i] && currentDistance[i] >= maxDistance[i]) {
+        simulatedMeasmtGoingUp[i] = false;
+      }
+      else if (!simulatedMeasmtGoingUp[i] && currentDistance[i] <= minDistance[i]) {
+        simulatedMeasmtGoingUp[i] = true;
+      }
+
+      if (simulatedMeasmtGoingUp[i]) {
+        ++currentDistance[i];
+      }
+      else {
+        --currentDistance[i];
       }
     }
-    widgetIsActive = true;
   }
+
+  widgetIsActive = true;
 }
 
 
@@ -528,6 +557,8 @@ void initGpios()
 
 void initRadio()
 {
+#ifdef ENABLE_RADIO
+
   Serial.println(F("Initializing radio..."));    
   radio.begin();
 
@@ -551,6 +582,8 @@ void initRadio()
   radio.startListening();
 
   Serial.println(F("Radio initialized."));    
+
+#endif
 }
 
 
@@ -650,6 +683,67 @@ bool initPixels()
 }
 
 
+void initPatterns()
+{
+  for (uint8_t iPattern = 0; iPattern < numPatternIds; ++iPattern) {
+
+    for (uint8_t iStrip = 0; iStrip < NUM_STRIPS; ++iStrip) {
+      if (pixels[iStrip] == nullptr) {
+        continue;
+      }
+
+      uint8_t sectionOffset = 0;
+      for (uint8_t iSection = 0; iSection < MAX_SECTIONS_PER_STRIP; ++iSection) {
+        if (numSectionPixels[iStrip][iSection] == 0) {
+          continue;
+        }
+   
+        CRGB* pixelSection = pixels[iStrip] + sectionOffset;
+        uint8_t numPixelsInSection = numSectionPixels[iStrip][iSection];
+
+        patternObjects[iPattern][iStrip][iSection] = pixelPatternFactory(patternIds[iPattern]);
+        if (patternObjects[iPattern][iStrip][iSection] != nullptr) {
+          // Give the pattern object pointers to everything it needs to generate an interactive pattern.
+          patternObjects[iPattern][iStrip][iSection]->init(
+            pixelSection,
+            numPixelsInSection,
+            iStrip,
+            iSection,
+            numDistanceMeasmts,
+            minDistance,
+            maxDistance,
+            currentDistance);
+#ifdef ENABLE_DEBUG_PRINT
+          Serial.print(freeRam());
+          Serial.print(F(" bytes available after instantiating pattern id "));
+          Serial.print(patternIds[iPattern]);
+          Serial.print(F(" for strip "));
+          Serial.print(iStrip);
+          Serial.print(F(" section "));
+          Serial.println(iSection);
+#endif
+        }
+        else {
+#ifdef ENABLE_DEBUG_PRINT
+          Serial.print(F("*** Instantiation of pattern id "));
+          Serial.print(patternIds[iPattern]);
+          Serial.print(F(" for strip "));
+          Serial.print(iStrip);
+          Serial.print(F(" section "));
+          Serial.println(iSection);
+          Serial.print(F(" failed."));
+#endif
+        }
+        sectionOffset += numPixelsInSection;
+      }
+    }
+  }
+
+  activePatternId = defaultPatternId;
+  startPattern();
+}
+
+
 void setup()
 {
 #ifdef ENABLE_DEBUG_PRINT
@@ -661,6 +755,7 @@ void setup()
   initGpios();
   initRadio();
   initPixels();
+  initPatterns();
 
 #ifdef ENABLE_WATCHDOG
   wdt_enable(WDTO_1S);     // enable the watchdog
@@ -675,12 +770,22 @@ void setup()
 
 void loop()
 {
+#ifdef ENABLE_RADIO
   if (digitalRead(SIMULATION_PIN) == SIMULATION_ACTIVE) {
-    updateSimulatedMeasurements();
+    // If we are just starting to use simulated measurements, usingSimulatedMeasmts
+    // will be false at this point, so passing !usingSimulatedMeasmts to
+    // updateSimulatedMeasmts tells it to do initialization.
+    updateSimulatedMeasmts(!usingSimulatedMeasmts);
+    usingSimulatedMeasmts = true;
   }
   else {
+    usingSimulatedMeasmts = false;
     pollRadio();
   }
+#else
+  updateSimulatedMeasmts(!usingSimulatedMeasmts);
+  usingSimulatedMeasmts = true;
+#endif
 
   // Periodically update the pattern.
   EVERY_N_MILLISECONDS(PATTERN_UPDATE_INTERVAL_MS) {
