@@ -33,3 +33,7 @@
 *.exe
 *.out
 *.app
+
+# macOS's crap files
+.DS_store
+
