@@ -1,4 +1,15 @@
 
+From NXP Semiconductor, see the I2C-Buss Specification ..., page 55 of 64, fig 41 and fig 42, which spells out the relationship between buss speed, value of pull up resistor Rp, and allowable capacitance of transmission line (aka buss). I put it in ...Electric Garden\docs\i2c spec UM10204.pdf
+
+Philips Semiconductors (now NXP Semiconductors) developed a simple
+bidirectional 2-wire bus for efficient inter-IC control. This bus is called the
+Inter-IC or I2C-bus. Only two bus lines are required: a serial data line
+(SDA) and a serial clock line (SCL). Serial, 8-bit oriented, bidirectional
+data transfers can be made at up to 100 kbit/s in the Standard-mode, up to
+400 kbit/s in the Fast-mode, up to 1 Mbit/s in the Fast-mode Plus (Fm+), or
+up to 3.4 Mbit/s in the High-speed mode. The Ultra Fast-mode is a
+uni-directional mode with data transfers of up to 5 Mbit/s.
+
 From http://www.mosaic-industries.com/
 
 I2C Bus Electrical Specifications

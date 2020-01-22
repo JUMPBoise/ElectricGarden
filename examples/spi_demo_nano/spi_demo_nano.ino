@@ -19,6 +19,7 @@
    We're using Arduino's SPI Library, see arduino.cc/en/reference/SPI
    for Arduino NANO boards, by default,
    use Pin 13 (D13) = SCK , 12 (D12) = MISO and 11 (D11) = MOSI
+   (those pins wwere verified on breadboard circuit on 1-21-2020)
    also, recommends setting pin 11 (D11) to OUTPUT to avoid accedentially
    borking the board if pin 11, the default SS pin for the Nano
    board, is activated.  SPI Library only supports Master Mode.

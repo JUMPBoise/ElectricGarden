@@ -96,8 +96,6 @@ Wire Wire Line
 Wire Wire Line
 	5150 2410 5150 1840
 Wire Wire Line
-	5150 1840 3200 1840
-Wire Wire Line
 	2280 3120 3200 3120
 Wire Wire Line
 	3200 3120 3200 1840
@@ -108,8 +106,6 @@ Wire Wire Line
 	5450 3810 6010 3810
 Wire Wire Line
 	6010 3810 6010 2230
-Wire Wire Line
-	6010 2230 2740 2230
 Wire Wire Line
 	2740 2230 2740 2040
 Wire Wire Line
@@ -124,20 +120,12 @@ Wire Wire Line
 Wire Wire Line
 	6110 3910 6110 2140
 Wire Wire Line
-	6110 2140 2630 2140
-Wire Wire Line
 	2630 3420 2280 3420
 Wire Wire Line
 	2630 2140 2630 3420
 Connection ~ 2630 2140
 Wire Wire Line
 	2630 2140 2260 2140
-Wire Wire Line
-	4450 3210 4100 3210
-Wire Wire Line
-	4100 3210 4100 3520
-Wire Wire Line
-	4100 3520 2280 3520
 Wire Wire Line
 	4450 3110 4100 3110
 Wire Wire Line
@@ -172,17 +160,6 @@ F 3 "~" H 1390 4690 50  0001 C CNN
 	1    1390 4690
 	-1   0    0    1   
 $EndComp
-$Comp
-L power:GND #PWR?
-U 1 1 5E28EBEE
-P 1590 4690
-F 0 "#PWR?" H 1590 4440 50  0001 C CNN
-F 1 "GND" H 1595 4517 50  0000 C CNN
-F 2 "" H 1590 4690 50  0001 C CNN
-F 3 "" H 1590 4690 50  0001 C CNN
-	1    1590 4690
-	1    0    0    -1  
-$EndComp
 Text Label 1280 4140 0    71   ~ 0
 local
 Text Label 1280 4270 0    71   ~ 0
@@ -190,55 +167,258 @@ speaker
 $Comp
 L Device:R R?
 U 1 1 5E291B8C
-P 1990 4590
-F 0 "R?" V 1783 4590 50  0000 C CNN
-F 1 "220" V 1874 4590 50  0000 C CNN
-F 2 "" V 1920 4590 50  0001 C CNN
-F 3 "~" H 1990 4590 50  0001 C CNN
-	1    1990 4590
+P 5950 6260
+F 0 "R?" V 5743 6260 50  0000 C CNN
+F 1 "2k" V 5834 6260 50  0000 C CNN
+F 2 "" V 5880 6260 50  0001 C CNN
+F 3 "~" H 5950 6260 50  0001 C CNN
+	1    5950 6260
 	0    1    1    0   
 $EndComp
-$Comp
-L Device:R_POT 10k
-U 1 1 5E292D4D
-P 2580 4590
-F 0 "10k" V 2373 4590 50  0000 C CNN
-F 1 "R_POT" V 2464 4590 50  0000 C CNN
-F 2 "" H 2580 4590 50  0001 C CNN
-F 3 "~" H 2580 4590 50  0001 C CNN
-	1    2580 4590
-	0    1    1    0   
-$EndComp
-Wire Wire Line
-	4450 3410 4180 3410
-Wire Wire Line
-	4180 3410 4180 4590
-Wire Wire Line
-	4180 4590 2730 4590
-Wire Wire Line
-	2430 4590 2140 4590
-Wire Wire Line
-	1840 4590 1590 4590
 $Comp
 L Potentiometer_Digital:MCP42010 U?
 U 1 1 5E295A97
 P 5070 5960
-F 0 "U?" H 5070 6641 50  0000 C CNN
-F 1 "MCP4231_10k" H 5070 6550 50  0000 C CNN
+F 0 "U?" H 5260 5490 50  0000 C CNN
+F 1 "MCP4231_10k" H 4710 6450 50  0000 C CNN
 F 2 "" H 5070 6060 50  0001 C CNN
 F 3 "http://ww1.microchip.com/downloads/en/DeviceDoc/11195c.pdf" H 5070 6060 50  0001 C CNN
 	1    5070 5960
 	1    0    0    -1  
 $EndComp
+Wire Wire Line
+	3200 1840 3400 1840
+Wire Wire Line
+	2740 2230 4000 2230
+Wire Wire Line
+	2630 2140 3400 2140
 $Comp
-L Potentiometer_Digital:MCP42010 U?
-U 1 1 5E297196
-P 1490 6970
-F 0 "U?" H 1490 7651 50  0000 C CNN
-F 1 "MCP42010" H 1490 7560 50  0000 C CNN
-F 2 "" H 1490 7070 50  0001 C CNN
-F 3 "http://ww1.microchip.com/downloads/en/DeviceDoc/11195c.pdf" H 1490 7070 50  0001 C CNN
-	1    1490 6970
+L Device:R R?
+U 1 1 5E27A478
+P 3400 1990
+F 0 "R?" H 3470 2036 50  0000 L CNN
+F 1 "4k7" H 3470 1945 50  0000 L CNN
+F 2 "" V 3330 1990 50  0001 C CNN
+F 3 "~" H 3400 1990 50  0001 C CNN
+	1    3400 1990
 	1    0    0    -1  
 $EndComp
+Connection ~ 3400 1840
+Wire Wire Line
+	3400 1840 3700 1840
+Connection ~ 3400 2140
+Wire Wire Line
+	3400 2140 6110 2140
+$Comp
+L Device:R R?
+U 1 1 5E27A94F
+P 3850 2000
+F 0 "R?" V 3940 2020 50  0000 C CNN
+F 1 "4k7" V 3734 2000 50  0000 C CNN
+F 2 "" V 3780 2000 50  0001 C CNN
+F 3 "~" H 3850 2000 50  0001 C CNN
+	1    3850 2000
+	0    1    1    0   
+$EndComp
+Wire Wire Line
+	3700 2000 3700 1840
+Connection ~ 3700 1840
+Wire Wire Line
+	3700 1840 5150 1840
+Wire Wire Line
+	4000 2000 4000 2230
+Connection ~ 4000 2230
+Wire Wire Line
+	4000 2230 6010 2230
+$Comp
+L power:GND #PWR?
+U 1 1 5E27983B
+P 5070 6460
+F 0 "#PWR?" H 5070 6210 50  0001 C CNN
+F 1 "GND" H 5075 6287 50  0000 C CNN
+F 2 "" H 5070 6460 50  0001 C CNN
+F 3 "" H 5070 6460 50  0001 C CNN
+	1    5070 6460
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:+5V #PWR?
+U 1 1 5E27A556
+P 5070 5460
+F 0 "#PWR?" H 5070 5310 50  0001 C CNN
+F 1 "+5V" H 5085 5633 50  0000 C CNN
+F 2 "" H 5070 5460 50  0001 C CNN
+F 3 "" H 5070 5460 50  0001 C CNN
+	1    5070 5460
+	1    0    0    -1  
+$EndComp
+$Comp
+L Amplifier_Audio:PAM8302AAD U?
+U 1 1 5E27B9DC
+P 2670 5600
+F 0 "U?" H 2860 5210 50  0000 C CNN
+F 1 "PAM8302A" H 2380 5970 50  0000 C CNN
+F 2 "" H 2670 5600 50  0001 C CNN
+F 3 "https://www.diodes.com/assets/Datasheets/PAM8302A.pdf" H 2670 5600 50  0001 C CNN
+	1    2670 5600
+	1    0    0    -1  
+$EndComp
+Text Label 2100 6750 0    39   ~ 0
+PAM8302A_inputs_have
+Text Label 2100 6830 0    39   ~ 0
+1.0uF_capacitors_inline.
+Wire Wire Line
+	6290 4860 6290 6260
+Wire Wire Line
+	6290 6260 6100 6260
+Wire Wire Line
+	5800 6260 5570 6260
+Wire Wire Line
+	5580 6160 5770 6160
+Wire Wire Line
+	5770 6160 5770 5000
+Wire Wire Line
+	5770 5000 2120 5000
+Wire Wire Line
+	2120 5000 2120 5400
+Wire Wire Line
+	2120 5400 2270 5400
+$Comp
+L power:GND #PWR?
+U 1 1 5E283D06
+P 2000 5600
+F 0 "#PWR?" H 2000 5350 50  0001 C CNN
+F 1 "GND" H 2005 5427 50  0000 C CNN
+F 2 "" H 2000 5600 50  0001 C CNN
+F 3 "" H 2000 5600 50  0001 C CNN
+	1    2000 5600
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:GND #PWR?
+U 1 1 5E2868DF
+P 2670 6000
+F 0 "#PWR?" H 2670 5750 50  0001 C CNN
+F 1 "GND" H 2675 5827 50  0000 C CNN
+F 2 "" H 2670 6000 50  0001 C CNN
+F 3 "" H 2670 6000 50  0001 C CNN
+	1    2670 6000
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:+5V #PWR?
+U 1 1 5E2874BA
+P 2670 5200
+F 0 "#PWR?" H 2670 5050 50  0001 C CNN
+F 1 "+5V" H 2770 5320 50  0000 C CNN
+F 2 "" H 2670 5200 50  0001 C CNN
+F 3 "" H 2670 5200 50  0001 C CNN
+	1    2670 5200
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	2270 5600 2000 5600
+Wire Wire Line
+	1590 4590 1890 4590
+Wire Wire Line
+	1890 4590 1890 6300
+Wire Wire Line
+	1890 6300 3320 6300
+Wire Wire Line
+	3320 6300 3320 5600
+Wire Wire Line
+	3320 5600 3070 5600
+Wire Wire Line
+	3070 5400 3430 5400
+Wire Wire Line
+	3430 5400 3430 6390
+Wire Wire Line
+	3430 6390 1800 6390
+Wire Wire Line
+	1800 6390 1800 4690
+Wire Wire Line
+	1800 4690 1590 4690
+Wire Wire Line
+	4450 3210 3100 3210
+Wire Wire Line
+	3100 3210 3100 3520
+Wire Wire Line
+	3100 3520 2280 3520
+Wire Wire Line
+	4450 3710 3690 3710
+Wire Wire Line
+	3690 3710 3690 4860
+Wire Wire Line
+	3690 4860 6290 4860
+Wire Wire Line
+	3550 3510 3550 5960
+Wire Wire Line
+	3550 3510 4450 3510
+Wire Wire Line
+	3550 5960 4230 5960
+Wire Wire Line
+	4450 3910 3800 3910
+Wire Wire Line
+	3800 3910 3800 5760
+Wire Wire Line
+	3800 5760 4570 5760
+Wire Wire Line
+	3940 4010 3940 5860
+Wire Wire Line
+	3940 5860 4570 5860
+Wire Wire Line
+	4450 4110 4080 4110
+Wire Wire Line
+	4080 4110 4080 5660
+Wire Wire Line
+	4080 5660 4570 5660
+Wire Wire Line
+	4450 4010 3940 4010
+$Comp
+L Device:R R?
+U 1 1 5E29C82A
+P 4230 6110
+F 0 "R?" H 4300 6156 50  0000 L CNN
+F 1 "5k1" H 4300 6065 50  0000 L CNN
+F 2 "" V 4160 6110 50  0001 C CNN
+F 3 "~" H 4230 6110 50  0001 C CNN
+	1    4230 6110
+	1    0    0    -1  
+$EndComp
+Connection ~ 4230 5960
+Wire Wire Line
+	4230 5960 4570 5960
+$Comp
+L Device:R R?
+U 1 1 5E29E0AC
+P 4440 6410
+F 0 "R?" H 4510 6456 50  0000 L CNN
+F 1 "5k1" H 4510 6365 50  0000 L CNN
+F 2 "" V 4370 6410 50  0001 C CNN
+F 3 "~" H 4440 6410 50  0001 C CNN
+	1    4440 6410
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:+5V #PWR?
+U 1 1 5E29EEC0
+P 3900 6550
+F 0 "#PWR?" H 3900 6400 50  0001 C CNN
+F 1 "+5V" H 3915 6723 50  0000 C CNN
+F 2 "" H 3900 6550 50  0001 C CNN
+F 3 "" H 3900 6550 50  0001 C CNN
+	1    3900 6550
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	3900 6560 3900 6550
+Wire Wire Line
+	4230 6260 4230 6560
+Connection ~ 4230 6560
+Wire Wire Line
+	4230 6560 3900 6560
+Wire Wire Line
+	4440 6560 4230 6560
+Wire Wire Line
+	4570 6260 4440 6260
 $EndSCHEMATC
