@@ -421,4 +421,218 @@ Wire Wire Line
 	4440 6560 4230 6560
 Wire Wire Line
 	4570 6260 4440 6260
+$Comp
+L Amplifier_Operational:OPA333xxD U?
+U 1 1 5E28DD28
+P 8080 4020
+F 0 "U?" H 8140 3860 50  0000 L CNN
+F 1 "OPA333_?" H 8110 4180 50  0000 L CNN
+F 2 "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm" H 7980 3820 50  0001 L CNN
+F 3 "http://www.ti.com/lit/ds/symlink/opa333.pdf" H 8230 4170 50  0001 C CNN
+	1    8080 4020
+	1    0    0    -1  
+$EndComp
+$Comp
+L Amplifier_Operational:OPA333xxD U?
+U 1 1 5E291B8C
+P 9350 4030
+F 0 "U?" H 9460 3900 50  0000 L CNN
+F 1 "OPA333_?" H 9380 4200 50  0000 L CNN
+F 2 "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm" H 9250 3830 50  0001 L CNN
+F 3 "http://www.ti.com/lit/ds/symlink/opa333.pdf" H 9500 4180 50  0001 C CNN
+	1    9350 4030
+	1    0    0    -1  
+$EndComp
+$Comp
+L Device:R R?
+U 1 1 5E2935D3
+P 7100 3850
+F 0 "R?" H 7170 3896 50  0000 L CNN
+F 1 "100k" H 6850 3850 50  0000 L CNN
+F 2 "" V 7030 3850 50  0001 C CNN
+F 3 "~" H 7100 3850 50  0001 C CNN
+	1    7100 3850
+	1    0    0    -1  
+$EndComp
+$Comp
+L Device:R R?
+U 1 1 5E294ECF
+P 7100 4150
+F 0 "R?" H 7170 4196 50  0000 L CNN
+F 1 "100k" H 6860 4160 50  0000 L CNN
+F 2 "" V 7030 4150 50  0001 C CNN
+F 3 "~" H 7100 4150 50  0001 C CNN
+	1    7100 4150
+	1    0    0    -1  
+$EndComp
+$Comp
+L Device:R R?
+U 1 1 5E295DA8
+P 8790 4840
+F 0 "R?" H 8860 4886 50  0000 L CNN
+F 1 "B" H 8860 4795 50  0000 L CNN
+F 2 "" V 8720 4840 50  0001 C CNN
+F 3 "~" H 8790 4840 50  0001 C CNN
+	1    8790 4840
+	1    0    0    -1  
+$EndComp
+$Comp
+L Device:R R?
+U 1 1 5E29670B
+P 9390 4650
+F 0 "R?" V 9490 4670 50  0000 C CNN
+F 1 "A" V 9290 4650 50  0000 C CNN
+F 2 "" V 9320 4650 50  0001 C CNN
+F 3 "~" H 9390 4650 50  0001 C CNN
+	1    9390 4650
+	0    1    1    0   
+$EndComp
+$Comp
+L Device:CP1 C?
+U 1 1 5E2973F2
+P 7400 4150
+F 0 "C?" H 7515 4196 50  0000 L CNN
+F 1 "100nF" H 7515 4105 50  0000 L CNN
+F 2 "" H 7400 4150 50  0001 C CNN
+F 3 "~" H 7400 4150 50  0001 C CNN
+	1    7400 4150
+	1    0    0    -1  
+$EndComp
+$Comp
+L Connector:Screw_Terminal_01x02 J?
+U 1 1 5E298E9A
+P 10360 4030
+F 0 "J?" H 10320 3760 50  0000 L CNN
+F 1 "Screw_Terminal" H 10130 4220 50  0000 L CNN
+F 2 "" H 10360 4030 50  0001 C CNN
+F 3 "~" H 10360 4030 50  0001 C CNN
+	1    10360 4030
+	1    0    0    -1  
+$EndComp
+Text Label 10540 4050 0    50   ~ 0
+out_to
+Text Label 10540 4150 0    50   ~ 0
+house_amplifier
+$Comp
+L power:+5V #PWR?
+U 1 1 5E29AFCE
+P 6810 3700
+F 0 "#PWR?" H 6810 3550 50  0001 C CNN
+F 1 "+5V" H 6825 3873 50  0000 C CNN
+F 2 "" H 6810 3700 50  0001 C CNN
+F 3 "" H 6810 3700 50  0001 C CNN
+	1    6810 3700
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:GND #PWR?
+U 1 1 5E29BEA4
+P 6790 4300
+F 0 "#PWR?" H 6790 4050 50  0001 C CNN
+F 1 "GND" H 6795 4127 50  0000 C CNN
+F 2 "" H 6790 4300 50  0001 C CNN
+F 3 "" H 6790 4300 50  0001 C CNN
+	1    6790 4300
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:GND #PWR?
+U 1 1 5E29CC1F
+P 10160 4330
+F 0 "#PWR?" H 10160 4080 50  0001 C CNN
+F 1 "GND" H 10165 4157 50  0000 C CNN
+F 2 "" H 10160 4330 50  0001 C CNN
+F 3 "" H 10160 4330 50  0001 C CNN
+	1    10160 4330
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	10160 4130 10160 4330
+Wire Wire Line
+	9650 4030 9860 4030
+$Comp
+L power:GND #PWR?
+U 1 1 5E2A5182
+P 9250 4330
+F 0 "#PWR?" H 9250 4080 50  0001 C CNN
+F 1 "GND" H 9180 4200 50  0000 C CNN
+F 2 "" H 9250 4330 50  0001 C CNN
+F 3 "" H 9250 4330 50  0001 C CNN
+	1    9250 4330
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	7780 3920 7400 3920
+Wire Wire Line
+	7400 3920 7400 4000
+Wire Wire Line
+	7400 4000 7100 4000
+Connection ~ 7400 4000
+Connection ~ 7100 4000
+Wire Wire Line
+	6810 3700 7100 3700
+Wire Wire Line
+	7100 3700 7980 3700
+Wire Wire Line
+	7980 3700 7980 3720
+Connection ~ 7100 3700
+Wire Wire Line
+	7980 3700 9250 3700
+Wire Wire Line
+	9250 3700 9250 3730
+Connection ~ 7980 3700
+Wire Wire Line
+	6790 4300 7100 4300
+Wire Wire Line
+	7100 4300 7400 4300
+Connection ~ 7100 4300
+Wire Wire Line
+	7400 4300 7710 4300
+Wire Wire Line
+	7710 4300 7710 4320
+Wire Wire Line
+	7710 4320 7980 4320
+Connection ~ 7400 4300
+Wire Wire Line
+	8380 4020 8440 4020
+Wire Wire Line
+	8560 4020 8560 4990
+Wire Wire Line
+	8560 4990 8790 4990
+Wire Wire Line
+	8790 4690 8790 4650
+Wire Wire Line
+	8790 4130 9050 4130
+Wire Wire Line
+	9240 4650 8790 4650
+Connection ~ 8790 4650
+Wire Wire Line
+	8790 4650 8790 4130
+Wire Wire Line
+	9860 4030 9860 4650
+Wire Wire Line
+	9860 4650 9540 4650
+Connection ~ 9860 4030
+Wire Wire Line
+	9860 4030 10160 4030
+Wire Wire Line
+	7780 4120 7780 4480
+Wire Wire Line
+	7780 4480 8440 4480
+Wire Wire Line
+	8440 4480 8440 4020
+Connection ~ 8440 4020
+Wire Wire Line
+	8440 4020 8560 4020
+Text Label 8580 5180 0    50   ~ 0
+gain_equals_one_plus_A_devided_by_B
+Wire Wire Line
+	9050 3930 9050 3400
+Wire Wire Line
+	9050 3400 6510 3400
+Wire Wire Line
+	6510 3400 6510 4860
+Wire Wire Line
+	6510 4860 6290 4860
+Connection ~ 6290 4860
 $EndSCHEMATC
