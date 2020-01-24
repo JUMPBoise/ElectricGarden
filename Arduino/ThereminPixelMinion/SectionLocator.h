@@ -20,7 +20,7 @@ class SectionLocator : public PixelPattern {
 
   public:
 
-    static constexpr uint8_t id = 2;
+    static constexpr uint8_t id = 254;
 
     // Default constructor and destructor don't do anything.
     SectionLocator() {}
