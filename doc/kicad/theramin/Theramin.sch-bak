@@ -631,8 +631,8 @@ Wire Wire Line
 Wire Wire Line
 	9050 3400 6510 3400
 Wire Wire Line
-	6510 3400 6510 4860
+	6510 5000 5770 5000
 Wire Wire Line
-	6510 4860 6290 4860
-Connection ~ 6290 4860
+	6510 3400 6510 5000
+Connection ~ 5770 5000
 $EndSCHEMATC

@@ -141,7 +141,7 @@ L power:+5V #PWR?
 U 1 1 5E28912B
 P 4850 2410
 F 0 "#PWR?" H 4850 2260 50  0001 C CNN
-F 1 "+5V" H 4930 2540 50  0000 C CNN
+F 1 "+5V" H 4720 2490 50  0000 C CNN
 F 2 "" H 4850 2410 50  0001 C CNN
 F 3 "" H 4850 2410 50  0001 C CNN
 	1    4850 2410
@@ -242,17 +242,6 @@ F 3 "" H 5070 6460 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L power:+5V #PWR?
-U 1 1 5E27A556
-P 5070 5460
-F 0 "#PWR?" H 5070 5310 50  0001 C CNN
-F 1 "+5V" H 5085 5633 50  0000 C CNN
-F 2 "" H 5070 5460 50  0001 C CNN
-F 3 "" H 5070 5460 50  0001 C CNN
-	1    5070 5460
-	1    0    0    -1  
-$EndComp
-$Comp
 L Amplifier_Audio:PAM8302AAD U?
 U 1 1 5E27B9DC
 P 2670 5600
@@ -273,8 +262,6 @@ Wire Wire Line
 	6290 6260 6100 6260
 Wire Wire Line
 	5800 6260 5570 6260
-Wire Wire Line
-	5580 6160 5770 6160
 Wire Wire Line
 	5770 6160 5770 5000
 Wire Wire Line
@@ -625,14 +612,39 @@ Connection ~ 8440 4020
 Wire Wire Line
 	8440 4020 8560 4020
 Text Label 8580 5180 0    50   ~ 0
-gain_equals_one_plus_A_devided_by_B
+gain_equals_one_plus_A_divided_by_B
 Wire Wire Line
 	9050 3930 9050 3400
 Wire Wire Line
 	9050 3400 6510 3400
 Wire Wire Line
-	6510 5000 5770 5000
-Wire Wire Line
 	6510 3400 6510 5000
-Connection ~ 5770 5000
+$Comp
+L power:GND #PWR?
+U 1 1 5E2C11E6
+P 5570 6060
+F 0 "#PWR?" H 5570 5810 50  0001 C CNN
+F 1 "GND" V 5660 6040 50  0000 R CNN
+F 2 "" H 5570 6060 50  0001 C CNN
+F 3 "" H 5570 6060 50  0001 C CNN
+	1    5570 6060
+	0    -1   -1   0   
+$EndComp
+Wire Wire Line
+	5570 6160 5770 6160
+Text Label 2730 5180 0    50   ~ 0
+unregulated
+Text Label 4660 2300 0    50   ~ 0
+unregulated
+Text Label 9480 7310 0    79   ~ 0
+DwgNo_CFS-1-24-2020-A
+Wire Wire Line
+	5150 1840 6240 1840
+Wire Wire Line
+	6240 1840 6240 4760
+Wire Wire Line
+	6240 4760 5070 4760
+Wire Wire Line
+	5070 4760 5070 5460
+Connection ~ 5150 1840
 $EndSCHEMATC

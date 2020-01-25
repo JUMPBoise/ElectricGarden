@@ -5,8 +5,8 @@
 // for SHT_LOXx to agree with the naming convention for Nano
 
 // address we will assign if dual sensor is present
-#define LOX1_ADDRESS 0x30
-#define LOX2_ADDRESS 0x31
+#define LOX1_ADDRESS 0x34
+#define LOX2_ADDRESS 0x33
 
 // set the pins to shutdown
 #define SHT_LOX1 4   // pin 3 refers to digital pin D3 and 4 to D4
@@ -42,33 +42,35 @@ void setID() {
   digitalWrite(SHT_LOX1, HIGH);
   digitalWrite(SHT_LOX2, LOW);
 
+  Serial.println("about to begin lox1");
   // initing LOX1
   if(!lox1.begin(LOX1_ADDRESS)) {
     Serial.println(F("Failed to boot first VL53L0X"));
     while(1);
   }
   delay(10);
-
+  
   // activating LOX2
   digitalWrite(SHT_LOX2, HIGH);
   delay(10);
-
+  Serial.println("about to begin lox2");
   //initing LOX2
   if(!lox2.begin(LOX2_ADDRESS)) {
     Serial.println(F("Failed to boot second VL53L0X"));
     while(1);
   }
+ 
 }
 
 void read_dual_sensors() {
   
   lox1.rangingTest(&measure1, false); // pass in 'true' to get debug data printout!
-  lox2.rangingTest(&measure2, false); // pass in 'true' to get debug data printout!
+  //lox2.rangingTest(&measure2, false); // pass in 'true' to get debug data printout!
 
   // print sensor one reading
   Serial.print("1: ");
   if(measure1.RangeStatus != 4) {     // if not out of range
-    Serial.print(measure1.RangeMilliMeter);
+  Serial.print(measure1.RangeMilliMeter);
   } else {
     Serial.print("Out of range");
   }
@@ -84,6 +86,7 @@ void read_dual_sensors() {
   }
   
   Serial.println();
+  
 }
 
 void setup() {
@@ -93,12 +96,12 @@ void setup() {
   while (! Serial) { delay(1); }
 
   pinMode(SHT_LOX1, OUTPUT);
-  pinMode(SHT_LOX2, OUTPUT);
+ // pinMode(SHT_LOX2, OUTPUT);
 
   Serial.println("Shutdown pins inited...");
 
   digitalWrite(SHT_LOX1, LOW);
-  digitalWrite(SHT_LOX2, LOW);
+//  digitalWrite(SHT_LOX2, LOW);
 
   Serial.println("Both in reset mode...(pins are low)");
   
