@@ -57,9 +57,9 @@
  ******************************/
 
 // Enable only one of these.
-//#define TARGET_IS_TREE
+#define TARGET_IS_TREE
 //#define TARGET_IS_CLOUD
-#define TARGET_IS_ROSS_DEVL
+//#define TARGET_IS_ROSS_DEVL
 
 
 
@@ -74,16 +74,19 @@
 #define SIMULATION_PIN A1 
 
 #if defined(TARGET_IS_TREE)
+  // ---------- trees ----------
   #define NUM_STRIPS 1
   #define MAX_SECTIONS_PER_STRIP 2
   constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {150, 50} };
-  constexpr uint8_t overallBrightness = 255;
+  constexpr uint8_t overallBrightness = 160;
 #elif defined(TARGET_IS_CLOUD)
+  // ---------- clouds ----------
   #define NUM_STRIPS 1
   #define MAX_SECTIONS_PER_STRIP 1
   constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {150} };
   constexpr uint8_t overallBrightness = 255;
 #elif defined(TARGET_IS_ROSS_DEVL)
+  // ---------- Ross's development board ----------
   #define NUM_STRIPS 1
   #define MAX_SECTIONS_PER_STRIP 2
   constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {30, 66} };
