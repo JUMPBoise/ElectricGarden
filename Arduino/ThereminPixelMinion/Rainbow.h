@@ -33,7 +33,7 @@ class Rainbow : public PixelPattern {
 
   private:
 
-    static constexpr uint8_t rainbowCompressionFactor = 4;
+    static constexpr uint8_t rainbowCompressionFactor = 2;
     static constexpr uint8_t minRainbowBrightness = 64;
     static constexpr uint8_t maxRainbowBrightness = 255;
 
