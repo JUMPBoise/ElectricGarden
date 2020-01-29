@@ -108,6 +108,8 @@ void setID() {
 }
 
 void read_dual_sensors() {
+
+// try with debug = true below, sensor #1 fails to start ?? !!!!!
   
   lox1.rangingTest(&measure1, false); // pass in 'true' to get debug data printout!
   lox2.rangingTest(&measure2, false); // pass in 'true' to get debug data printout!
