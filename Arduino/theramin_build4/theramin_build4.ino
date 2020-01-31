@@ -57,19 +57,17 @@
 // #include "Adafruit_VL53L0X.h"
 
 // address we will assign if dual sensor is present
-#define SENSOR1_ADDRESS 0x30
-#define SENSOR2_ADDRESS 0x31
+#define SENSOR1_ADDRESS 0x33
+#define SENSOR2_ADDRESS 0x37
 
 // set the pins to shutdown
 #define SHT_SENSOR1 4  // D4 is the Nano pin conected to XSHUT for sensor1
 #define SHT_SENSOR2 3  // D3 is the Nano pin conected to XSHUT for sensor2
 
-// objects for the vl53l0x
-// Adafruit_VL53L0X lox1 = Adafruit_VL53L0X();
-// Adafruit_VL53L0X lox2 = Adafruit_VL53L0X();
 
-VL53L0X sensor1; // constructor for Pololu's sensor control objects
-VL53L0X sensor2; 
+
+ VL53L0X sensor1; // constructor for Pololu's sensor control objects
+ VL53L0X sensor2; 
 
 // this holds the measurement
 // VL53L0X_RangingMeasurementData_t measure1;
@@ -91,28 +89,35 @@ VL53L0X sensor2;
     3. Keep sensor #1 awake by keeping XSHUT pin high
     4. Put all other sensors into shutdown by pulling XSHUT pins low
     5. Set a new address for sensor #1 using sensor1.setAddress(...), 
-	   Pick any number but 0x29 and it must be under 0x7F. Going with 0x30 to 0x3F is probably OK.
-	6. Keep sensor #1 awake, and now bring sensor #2 out of reset by setting its XSHUT pin high.
-	7. Set a new address for sensor #2 using sensor2.setAddress(...),
+	     Pick any number but 0x29 and it must be under 0x7F. Going with 0x30 to 0x3F is probably OK.
+	  6. Keep sensor #1 awake, and now bring sensor #2 out of reset by setting its XSHUT pin high.
+	  7. Set a new address for sensor #2 using sensor2.setAddress(...),
        Pick any number but 0x29 and whatever you set the first sensor to.
  */
 void setID() {
   // initialize all sensors in setup {...}
-  
-  // all reset (aka shutdown)
+    // all reset
+    
   digitalWrite(SHT_SENSOR1, LOW);    
   digitalWrite(SHT_SENSOR2, LOW);
   delay(10);
-  // all activate 
+  
+  // all unreset
   digitalWrite(SHT_SENSOR1, HIGH);
   digitalWrite(SHT_SENSOR2, HIGH);
   delay(10);
 
-  // activate SENSOR1 and reset SENSOR2 
+  // activating SENSOR1 and reseting SENSOR2
   digitalWrite(SHT_SENSOR1, HIGH);
   digitalWrite(SHT_SENSOR2, LOW);
-  delay(10);
 
+  sensor1.setTimeout(500); 
+  if (!sensor1.init())
+  {
+    Serial.println("Failed to detect and initialize first sensor!");
+    while (1) {}
+  }
+  
   // setting address for SENSOR1
   sensor1.setAddress(SENSOR1_ADDRESS);
   delay(10);
@@ -120,9 +125,15 @@ void setID() {
   //  activate SENSOR2
   digitalWrite(SHT_SENSOR2, HIGH);
   delay(10);
-
+  
+  sensor2.setTimeout(500); 
+  if (!sensor2.init())
+  {
+    Serial.println("Failed to detect and initialize second sensor!");
+    while (1) {}
+  }
   // setting address for SENSOR2
-  sensor2.setAddress(SENSOR1_ADDRESS);
+  sensor2.setAddress(SENSOR2_ADDRESS);
   delay(10);
  
 }
@@ -248,27 +259,21 @@ void setup() {
 //  initialize SPI 
     SPI.begin(); // comment this out if your radio library initializes SPI
 
+
+pinMode(SHT_SENSOR1,OUTPUT);
+pinMode(SHT_SENSOR2,OUTPUT);
+
+
   #ifdef ENABLE_SERIAL 
   Serial.begin(115200);
   // wait until serial port opens for native USB devices
   while (! Serial) { delay(1); }
   #endif
 
-   Wire.begin();
+  Wire.begin();
 
-  sensor1.setTimeout(500);
-  if (!sensor1.init())
-  {
-    Serial.println("Failed to detect and initialize first sensor!");
-    while (1) {}
-  }
+  setID();
 
-  sensor2.setTimeout(500);
-  if (!sensor2.init())
-  {
-    Serial.println("Failed to detect and initialize second sensor!");
-    while (1) {}
-  }
 
   #if defined LONG_RANGE
   // lower the return signal rate limit (default is 0.25 MCPS)
@@ -291,23 +296,9 @@ void setup() {
   sensor2.setMeasurementTimingBudget(200000);
 #endif
 
-  pinMode(SHT_SENSOR1, OUTPUT);
-  pinMode(SHT_SENSOR2, OUTPUT);
 
-
-  #ifdef ENABLE_SERIAL
-  Serial.println("Shutdown pins set to OUTPUT mode...");
-  #endif
-
-  digitalWrite(SHT_SENSOR1, LOW);
-  digitalWrite(SHT_SENSOR2, LOW);
-
-  #ifdef ENABLE_SERIAL
-  Serial.println("Both Shutdown pins are reset ...(pins are low)");
-  Serial.println("Starting...");
-  #endif
   
-  setID();
+
  
 }
 
