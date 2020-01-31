@@ -3,19 +3,12 @@
 // which was based on theramin_build2.ino in examples
 
 // the point of ...build4 is to change over to the Pololu library
-// for controling the VL53L0x devices, which actually made effectively
+// for controlling the VL53L0x devices, which actually made effectively
 // continuous tones in sketch Single_Buzzer.ino using a circuit shown 
 // on drawing SINGLE_BUZZER wiring diagram, dwgno. CFS-1-5-2020-B1
 
-// theramin_build3.ino was 
-// tested on circuit shown in drawing THERAMIN , dwgno CFS-1-24-2020-A,
-// omitting the "out to house amplifer" circuit, of course.
-// worked well except as noted below on 1-26-2020 at 11:00 pm
-// for refinements and problem fixes:
-//      1. tone are coming in notes about one per second, too slow
-//      2. pitch range control could be better
-
-#define ENABLE_SERIAL // comment out to drop compilation of serial print code
+//#define ENABLE_SERIAL // comment out to drop compilation of serial print code
+//#define ENABLE_STOPWATCH // comment out unless you want to to measure elapsed time between loops
 
 // from Single_Buzzer.ino 
 #include <Wire.h> // not in ...build3 because it's clearly in Adafruit_VL53L0X.h
@@ -42,19 +35,12 @@
 // #define HIGH_ACCURACY  
 
 
-
-
-
-
 // from spi_demo_nano.ino and is used to enable the digital potentiomenter
 #include <SPI.h>  // comment this out if your radio library establishs SPI
 #define SS1  7 //Pin 7 is SS (slave select) for device 1
 #define REG0 B00000000 //Register 0 Write command for Px0 pins
 #define REG1 B00010000 //Register 1 Write command for Px1 pins
 
-
-// from vl53l0x_dual_test.ino
-// #include "Adafruit_VL53L0X.h"
 
 // address we will assign if dual sensor is present
 #define SENSOR1_ADDRESS 0x33
@@ -94,7 +80,7 @@
 	  7. Set a new address for sensor #2 using sensor2.setAddress(...),
        Pick any number but 0x29 and whatever you set the first sensor to.
  */
-void setID() {
+void setIdAndInit() {
   // initialize all sensors in setup {...}
     // all reset
     
@@ -138,8 +124,7 @@ void setID() {
  
 }
 
-void read_dual_sensors() {
-  
+void read_dual_sensors() {  
 
 uint16_t dist1 = sensor1.readRangeSingleMillimeters();
 bool dist1Valid = !(sensor1.timeoutOccurred());
@@ -151,7 +136,7 @@ bool dist1Valid = !(sensor1.timeoutOccurred());
   } else {
       Serial.print(" TIMEOUT");
   }
-  Serial.print("  2: ");
+ 
  #endif
     //  //////////////////////////////////
   if(dist1Valid){  
@@ -162,29 +147,39 @@ bool dist1Valid = !(sensor1.timeoutOccurred());
     
 uint16_t dist2 = sensor2.readRangeSingleMillimeters();
 bool dist2Valid = !(sensor2.timeoutOccurred());
-  // print sensor two reading
+   // print sensor two reading
   #ifdef ENABLE_SERIAL 
-  Serial.print("1: ");
-  if(dist1Valid){
-      Serial.print(dist1);
+   Serial.print("  2: ");
+  if(dist2Valid){
+      Serial.print(dist2);
   } else {
       Serial.print(" TIMEOUT");
   }
-  Serial.println();
+  Serial.print("  ");
  #endif
     //  //////////////////////////////////
    if(dist2Valid) {
     volume(dist2);
    }
     //  //////////////////////////////////
- 
+
+  #ifdef ENABLE_SERIAL
+   Serial.println();
+ #endif
 }
 
 void pitch(uint16_t dist){
+  
+   uint16_t frequency = dist; //need not be identically equal
+   
    if(dist <= MAXFREQUENCY ){
-        tone(SPEAKER, dist );
+        tone(SPEAKER, frequency );
+          #ifdef ENABLE_SERIAL
+          Serial.print("  frequency = ");
+          Serial.print(frequency);
+          #endif
         } else {
-              noTone(SPEAKER); // comment out noTone() to sustain last tone
+            //  noTone(SPEAKER); // comment out noTone() to sustain last tone
         }
 }
 
@@ -270,9 +265,18 @@ pinMode(SHT_SENSOR2,OUTPUT);
   while (! Serial) { delay(1); }
   #endif
 
+  #ifdef ENABLE_STOPWATCH
+     #ifndef ENABLE_SERIAL 
+     Serial.begin(115200);
+     // wait until serial port opens for native USB devices
+     while (! Serial) { delay(1); }
+     Serial.println("STOPWATCH enabled");
+     #endif
+  #endif
+
   Wire.begin();
 
-  setID();
+  setIdAndInit();
 
 
   #if defined LONG_RANGE
@@ -296,14 +300,28 @@ pinMode(SHT_SENSOR2,OUTPUT);
   sensor2.setMeasurementTimingBudget(200000);
 #endif
 
-
-  
-
  
 }
 
 void loop() {
-   
+
+  #ifdef ENABLE_STOPWATCH
+  unsigned long time1 = millis();
+  unsigned int k ;
+  for( k = 0; k < 100; k++) {
+  #endif
+  
   read_dual_sensors();
-  delay(100);
+//  delay(100);
+
+  #ifdef ENABLE_STOPWATCH
+  }
+  unsigned long time2 = millis();
+  Serial.print(" elapsed time for ");
+  Serial.print( k );
+  Serial.print(" loops is ");
+  Serial.print( (time2-time1));
+  Serial.println(" ms");
+  
+  #endif
 }
