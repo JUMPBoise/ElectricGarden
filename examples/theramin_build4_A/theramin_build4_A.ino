@@ -13,7 +13,7 @@
 // from Single_Buzzer.ino 
 #include <Wire.h> // not in ...build3 because it's clearly in Adafruit_VL53L0X.h
 #include <VL53L0X.h> // this is the header for the Pololu library for vl53l0x
-#define SPEAKER  6      // use pin D6 on Nano
+#define SPEAKER  9      // use pin D9 on Nano
 #define MAXFREQUENCY  1200
 
 // from Single_Buzzer.ino
@@ -31,9 +31,7 @@
 // - higher speed at the cost of lower accuracy OR
 // - higher accuracy at the cost of lower speed
 
-// NEW CONTINUOUS CODE DOES NOT USE "sensorN.setMeasurementTimingBudget(T);"
-// so don't define HIGH_ACCURACY   or  HIGH_SPEED 
-// #define HIGH_SPEED  // if you choose HIGH_ACCURACY you can hear the steps in pitch
+#define HIGH_SPEED  // if you choose HIGH_ACCURACY you can hear the steps in pitch
 // #define HIGH_ACCURACY  
 
 
@@ -46,22 +44,28 @@
 
 // address we will assign if dual sensor is present
 #define SENSOR1_ADDRESS 0x33
-#define SENSOR2_ADDRESS 0x35
-#define SENSOR3_ADDRESS 0x37
+#define SENSOR2_ADDRESS 0x37
 
 // set the pins to shutdown
-#define SHT_SENSOR1 2  // D2 is the Nano pin conected to XSHUT for sensor1
+#define SHT_SENSOR1 4  // D4 is the Nano pin conected to XSHUT for sensor1
 #define SHT_SENSOR2 3  // D3 is the Nano pin conected to XSHUT for sensor2
-#define SHT_SENSOR3 4  // D4 is the Nano pin conected to XSHUT for sensor1
+
 
 
  VL53L0X sensor1; // constructor for Pololu's sensor control objects
  VL53L0X sensor2; 
- VL53L0X sensor3; 
+
+// this holds the measurement
+// VL53L0X_RangingMeasurementData_t measure1;
+// VL53L0X_RangingMeasurementData_t measure2;
+// in Adafruit_VL53L0X LIBRARY, IN vl53l0x_def.h, there is the def:
+// typedef struct {...} VL53L0X_RangingMeasurementData_t; there is a data
+// member: "uint16_t RangeMilliMeter; /*!< range distance in millimeter. */"
+// so measure1.RangeMilliMeter is type uint16_t, the distance measured in mm 
 
 
 /* 
-    in setID(){...} , now: void setIdAndInit() 
+    in setID(){...} , 
 	(  in the new arrangement using the Pololu code library, VL53L0X.cpp:
 			initialization is by using:   		bool VL53L0X::init(bool io_2v8)
 			i2c address assignment is by: 		void VL53L0X::setAddress(uint8_t new_address)  )
@@ -82,21 +86,18 @@ void setIdAndInit() {
     
   digitalWrite(SHT_SENSOR1, LOW);    
   digitalWrite(SHT_SENSOR2, LOW);
-  digitalWrite(SHT_SENSOR3, LOW);
   delay(10);
   
   // all unreset
   digitalWrite(SHT_SENSOR1, HIGH);
   digitalWrite(SHT_SENSOR2, HIGH);
-  digitalWrite(SHT_SENSOR3, HIGH);
   delay(10);
 
-  // activating SENSOR1 and reseting SENSOR2, SENSOR3
+  // activating SENSOR1 and reseting SENSOR2
   digitalWrite(SHT_SENSOR1, HIGH);
   digitalWrite(SHT_SENSOR2, LOW);
-  digitalWrite(SHT_SENSOR3, LOW);
 
-  // sensor1.setTimeout(500); 
+  sensor1.setTimeout(500); 
   if (!sensor1.init())
   {
     Serial.println("Failed to detect and initialize first sensor!");
@@ -109,10 +110,9 @@ void setIdAndInit() {
 
   //  activate SENSOR2
   digitalWrite(SHT_SENSOR2, HIGH);
-  digitalWrite(SHT_SENSOR3, LOW);
   delay(10);
   
- //  sensor2.setTimeout(500); 
+  sensor2.setTimeout(500); 
   if (!sensor2.init())
   {
     Serial.println("Failed to detect and initialize second sensor!");
@@ -121,77 +121,66 @@ void setIdAndInit() {
   // setting address for SENSOR2
   sensor2.setAddress(SENSOR2_ADDRESS);
   delay(10);
-
-    //  activate SENSOR3
-  digitalWrite(SHT_SENSOR3, HIGH);
-  delay(10);
-  
- //  sensor3.setTimeout(500); 
-  if (!sensor3.init())
-  {
-    Serial.println("Failed to detect and initialize third sensor!");
-    while (1) {}
-  }
-  // setting address for SENSOR3
-  sensor3.setAddress(SENSOR3_ADDRESS);
-  delay(10);
-
-  sensor1.startContinuous(); // necessary to use CONTINUOUS mode
-  sensor2.startContinuous();
-  sensor3.startContinuous();
  
 }
 
 void read_dual_sensors() {  
 
-  uint16_t dist1 = sensor1.readRangeContinuousMillimeters();
-  if (dist1 != 65535) {      // bool distNValid = (distN != 65535);
-    // print sensor one reading
-#ifdef ENABLE_SERIAL 
-    Serial.print("  1: ");
-    Serial.print(dist1);
+uint16_t dist1 = sensor1.readRangeSingleMillimeters();
+bool dist1Valid = !(sensor1.timeoutOccurred());
+  // print sensor one reading
+  #ifdef ENABLE_SERIAL 
+  Serial.print("1: ");
+  if(dist1Valid){
+      Serial.print(dist1);
+  } else {
+      Serial.print(" TIMEOUT");
+  }
+ 
  #endif
+    //  //////////////////////////////////
+  if(dist1Valid){  
     pitch(dist1);
   }
+    //  //////////////////////////////////
 
-  uint16_t dist2 = sensor2.readRangeContinuousMillimeters();
-  if (dist2 != 65535) {   // bool distNValid = (distN != 65535);
-    // print sensor one reading
-#ifdef ENABLE_SERIAL 
-    Serial.print("  2: ");
-    Serial.print(dist2);
+    
+uint16_t dist2 = sensor2.readRangeSingleMillimeters();
+bool dist2Valid = !(sensor2.timeoutOccurred());
+   // print sensor two reading
+  #ifdef ENABLE_SERIAL 
+   Serial.print("  2: ");
+  if(dist2Valid){
+      Serial.print(dist2);
+  } else {
+      Serial.print(" TIMEOUT");
+  }
+  Serial.print("  ");
  #endif
+    //  //////////////////////////////////
+   if(dist2Valid) {
     volume(dist2);
-  }
+   }
+    //  //////////////////////////////////
 
-    uint16_t dist3 = sensor3.readRangeContinuousMillimeters();
-  if (dist3 != 65535) {   // bool distNValid = (distN != 65535);
-    // print sensor one reading
-#ifdef ENABLE_SERIAL 
-    Serial.print("  3: ");
-    Serial.print(dist3);
-    Serial.println(); // take out if using controlFunction(dist3);
+  #ifdef ENABLE_SERIAL
+   Serial.println();
  #endif
-    // controlFunction(dist3);  goes here, null for now
-  }
-
 }
 
 void pitch(uint16_t dist){
   
    uint16_t frequency = dist; //need not be identically equal
    
-   if(frequency <= MAXFREQUENCY ){
-          tone(SPEAKER, frequency );
-#ifdef ENABLE_SERIAL
+   if(dist <= MAXFREQUENCY ){
+        tone(SPEAKER, frequency );
+          #ifdef ENABLE_SERIAL
           Serial.print("  frequency = ");
-          Serial.println(frequency);
-          
-          } else {
+          Serial.print(frequency);
+          #endif
+        } else {
             //  noTone(SPEAKER); // comment out noTone() to sustain last tone
-            Serial.println("  frequency sustained"); 
-          }
-#endif
+        }
 }
 
 void commandPot(int SS, int reg, int level) {
@@ -241,7 +230,7 @@ if (dist >= TOPRANGE ){
 
     #ifdef ENABLE_SERIAL  
     Serial.print(" volumeLevel = ");
-    Serial.println(volumeLevel);
+    Serial.print(volumeLevel);
     #endif
     commandPot(SS1 ,REG0, volumeLevel); // sets wiper on pot pins P0W
     commandPot(SS1 ,REG1, volumeLevel); // sets wiper on pot pins P1W
@@ -268,7 +257,6 @@ void setup() {
 
 pinMode(SHT_SENSOR1,OUTPUT);
 pinMode(SHT_SENSOR2,OUTPUT);
-pinMode(SHT_SENSOR3,OUTPUT);
 
 
   #ifdef ENABLE_SERIAL 
@@ -305,7 +293,7 @@ pinMode(SHT_SENSOR3,OUTPUT);
 #if defined HIGH_SPEED
   // reduce timing budget to 20 ms (default is about 33 ms)
 sensor1.setMeasurementTimingBudget(20000);
-sensor2.setMeasurementTimingBudget(20000);
+ sensor2.setMeasurementTimingBudget(20000);
 #elif defined HIGH_ACCURACY
   // increase timing budget to 200 ms
   sensor1.setMeasurementTimingBudget(200000);
@@ -317,25 +305,23 @@ sensor2.setMeasurementTimingBudget(20000);
 
 void loop() {
 
-#ifdef ENABLE_STOPWATCH
-  static unsigned long time1 = millis();
-  static unsigned int k ; // by default, on creation, static is initalized to zero
-#endif
+  #ifdef ENABLE_STOPWATCH
+  unsigned long time1 = millis();
+  unsigned int k ;
+  for( k = 0; k < 100; k++) {
+  #endif
   
   read_dual_sensors();
+//  delay(100);
 
-#ifdef ENABLE_STOPWATCH
-  k++;
-  if (k >= 100){
-     unsigned long time2 = millis();
-     Serial.print(" elapsed time for ");
-     Serial.print( k );
-     Serial.print(" loops is ");
-     Serial.print( (time2-time1));
-     Serial.println(" ms");
-     time1 = time2;
-     k=0;
+  #ifdef ENABLE_STOPWATCH
   }
+  unsigned long time2 = millis();
+  Serial.print(" elapsed time for ");
+  Serial.print( k );
+  Serial.print(" loops is ");
+  Serial.print( (time2-time1));
+  Serial.println(" ms");
   
-#endif
+  #endif
 }
