@@ -16,11 +16,11 @@
 // TODO:  get status led stuff from JohnsKaleidoscopeMirror
 
 
-/***********
+/***********p
  * Options *
  ***********/
 
-//#define ENABLE_DEBUG_PRINT
+#define ENABLE_DEBUG_PRINT
 #define ENABLE_RADIO
 #define ENABLE_WATCHDOG
 
@@ -78,19 +78,22 @@
   #define NUM_STRIPS 1
   #define MAX_SECTIONS_PER_STRIP 2
   constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {150, 50} };
-  constexpr uint8_t overallBrightness = 160;
+  constexpr uint8_t overallBrightness = 64;
+  constexpr uint32_t colorCorrection = 0xFFFF66;
 #elif defined(TARGET_IS_CLOUD)
   // ---------- clouds ----------
   #define NUM_STRIPS 1
   #define MAX_SECTIONS_PER_STRIP 1
   constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {150} };
   constexpr uint8_t overallBrightness = 255;
+  constexpr uint32_t colorCorrection = 0xFFFF66;
 #elif defined(TARGET_IS_ROSS_DEVL)
   // ---------- Ross's development board ----------
   #define NUM_STRIPS 1
   #define MAX_SECTIONS_PER_STRIP 2
   constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {30, 66} };
   constexpr uint8_t overallBrightness = 48;
+  constexpr uint32_t colorCorrection = 0xFFFF66;
 #else
   #error No target defined.
 #endif
@@ -109,7 +112,7 @@
 #define PATTERN_UPDATE_INTERVAL_MS 30
 
 #define LAMP_TEST_ACTIVE LOW
-#define LAMP_TEST_INTENSITY 255
+
 
 // Use these for common-anode RGB LED.
 //constexpr uint8_t rgbLedLowIntensity = 255;
@@ -322,10 +325,9 @@ void updatePattern()
 {
   // Lamp test mode overrides the current pattern.
   if (digitalRead(LAMP_TEST_PIN) == LAMP_TEST_ACTIVE) {
-    // Set all pixels in all strips to white at LAMP_TEST_INTENSITY.  (Let's hope
-    // the power supply can handle it.  Otherwise...  Holy brownout, Batman!)
+    // Set all pixels in all strips to white at overallBrightness.
     CRGB lampTestColor = CRGB::White;
-    lampTestColor.nscale8_video(LAMP_TEST_INTENSITY);
+    lampTestColor.nscale8_video(overallBrightness);
     for (uint8_t i = 0; i < NUM_STRIPS; ++i) {
       if (pixels[i] != nullptr) {
         fill_solid(pixels[i], numPixels[i], lampTestColor);
@@ -425,12 +427,12 @@ bool handleMeasurementVectorPayload(const MeasurementVectorPayload* payload, uin
     }
 
 #ifdef ENABLE_DEBUG_PRINT
-  Serial.print(F("got distances"));
-  for (uint8_t i = 0; i < numDistanceMeasmts; ++i) {
-    Serial.print(" ");
-    Serial.print(currentDistance[i]);
-  }
-  Serial.println();
+//  Serial.print(F("got distances"));
+//  for (uint8_t i = 0; i < numDistanceMeasmts; ++i) {
+//    Serial.print(" ");
+//    Serial.print(currentDistance[i]);
+//  }
+//  Serial.println();
 #endif
 
   }
@@ -679,7 +681,7 @@ bool initPixels()
 
   // Although not enforced above, we'll assume that all the strips are of the
   // same type and should have the same color correction and maximum brightness.
-  FastLED.setCorrection(TypicalLEDStrip);
+  FastLED.setCorrection(colorCorrection);
   FastLED.setBrightness(overallBrightness);
 
   return retval;
