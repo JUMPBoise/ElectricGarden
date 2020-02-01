@@ -2,7 +2,7 @@
  *                                                                             *
  * Theremin Pixel Pattern Generator                                            *
  *                                                                             *
- * PixelPattern object factory                                                 *
+ * StripTest Class - generates a pattern for testing LED strips                *
  *                                                                             *
  * Author(s):  Ross Butler                                                     *
  *                                                                             *
@@ -10,24 +10,22 @@
  *                                                                             *
  *******************************************************************************/
 
-#pragma once
-
-#include "PixelPattern.h"
-#include "Rainbow.h"
-#include "SectionLocator.h"
 #include "StripTest.h"
 
 
-static PixelPattern* pixelPatternFactory(uint8_t patternId)
+
+void StripTest::update(bool widgetIsActive)
 {
-  switch(patternId) {
-    case Rainbow::id:
-      return new Rainbow;
-    case SectionLocator::id:
-      return new SectionLocator;
-    case StripTest::id:
-      return new StripTest;
-    default:
-      return nullptr;
+  CRGB color;
+
+  if (numMeasmts >= 3) {
+    color.r = map(curMeasmts[0], minMeasmtValues[0], maxMeasmtValues[0], 0, 255);
+    color.g = map(curMeasmts[1], minMeasmtValues[1], maxMeasmtValues[1], 0, 255);
+    color.b = map(curMeasmts[2], minMeasmtValues[2], maxMeasmtValues[2], 0, 255);
   }
+  else {
+    color = CRGB::White;
+  }
+
+  fill_solid(pixels, numPixels, color);
 }
