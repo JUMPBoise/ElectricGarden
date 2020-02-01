@@ -57,9 +57,10 @@
  ******************************/
 
 // Enable only one of these.
-#define TARGET_IS_TREE
+//#define TARGET_IS_TREE
 //#define TARGET_IS_CLOUD
 //#define TARGET_IS_ROSS_DEVL
+#define TARGET_IS_STRIP_TESTER
 
 
 
@@ -82,6 +83,12 @@
   constexpr uint32_t colorCorrection = 0xFFFF66;
 #elif defined(TARGET_IS_CLOUD)
   // ---------- clouds ----------
+  #define NUM_STRIPS 1
+  #define MAX_SECTIONS_PER_STRIP 1
+  constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {255} };
+  constexpr uint8_t overallBrightness = 255;
+#elif defined(TARGET_IS_STRIP_TESTER)
+  // ---------- strip tester ----------
   #define NUM_STRIPS 1
   #define MAX_SECTIONS_PER_STRIP 1
   constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {150} };
@@ -155,7 +162,7 @@ constexpr int16_t minValidDistance = 0;
 constexpr int16_t maxValidDistance = 4000;
 
 // the list of patterns that can be selected and displayed
-constexpr uint8_t patternIds[] = {Rainbow::id, SectionLocator::id};
+constexpr uint8_t patternIds[] = {Rainbow::id, SectionLocator::id, StripTest::id};
 constexpr uint8_t numPatternIds = sizeof(patternIds) / sizeof(uint8_t);
 
 // The defaut pattern is the active pattern upon startup and remains the active

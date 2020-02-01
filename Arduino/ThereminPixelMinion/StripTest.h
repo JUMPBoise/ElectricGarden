@@ -2,7 +2,7 @@
  *                                                                             *
  * Theremin Pixel Pattern Generator                                            *
  *                                                                             *
- * PixelPattern object factory                                                 *
+ * StripTest Class - generates a pattern for testing LED strips                *
  *                                                                             *
  * Author(s):  Ross Butler                                                     *
  *                                                                             *
@@ -13,21 +13,24 @@
 #pragma once
 
 #include "PixelPattern.h"
-#include "Rainbow.h"
-#include "SectionLocator.h"
-#include "StripTest.h"
 
 
-static PixelPattern* pixelPatternFactory(uint8_t patternId)
-{
-  switch(patternId) {
-    case Rainbow::id:
-      return new Rainbow;
-    case SectionLocator::id:
-      return new SectionLocator;
-    case StripTest::id:
-      return new StripTest;
-    default:
-      return nullptr;
-  }
-}
+class StripTest : public PixelPattern {
+
+  public:
+
+    static constexpr uint8_t id = 253;
+
+    // Default constructor and destructor don't do anything.
+    StripTest() {}
+    ~StripTest() {}
+          
+    // Disable copy constructor and assignment operator.
+    StripTest(const StripTest&) = delete;
+    StripTest& operator =(const StripTest&) = delete;
+
+    void update(bool widgetIsActive);
+
+  private:
+
+};
