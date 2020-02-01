@@ -15,32 +15,22 @@
 
 void Rainbow::update(bool widgetIsActive)
 {
-  uint8_t startingHue = map(curMeasmts[0], minMeasmtValues[0], maxMeasmtValues[0], 0, 255);
+  uint16_t startingHue = map(curMeasmts[0], minMeasmtValues[0], maxMeasmtValues[0], 0, 25500);
   
-  uint16_t rainbowCompression = map(curMeasmts[2], minMeasmtValues[2], maxMeasmtValues[2], 100, 800);
-  float hueStep = 255.00 / (numPixels / (rainbowCompression / 100));
+  uint16_t rainbowCompression = map(curMeasmts[2], minMeasmtValues[2], maxMeasmtValues[2], minRainbowCompressionFactor, maxRainbowCompressionFactor);
+  uint32_t hueStep = 25500 / (numPixels * 100 / (rainbowCompression));
 
   uint8_t brightness = map(curMeasmts[1], minMeasmtValues[1], maxMeasmtValues[1], minRainbowBrightness, maxRainbowBrightness);
-  Serial.print(F("startHue "));
-  Serial.print(startingHue);
-  Serial.print(F(", rainbowCompression "));
-  Serial.print(rainbowCompression);
-  Serial.print(F(", hueStep "));
-  Serial.print(hueStep);
-  Serial.print(F(", brightness "));
-  Serial.println(brightness);
   
-  
-
-//  custom_fill_rainbow(pixels, numPixels, startingHue, hueStep);
-  // Custom fill rainbow
   CHSV hsv;
-  hsv.hue = startingHue;
+  uint32_t currentHue = startingHue;
+  hsv.hue = startingHue/100;
   hsv.val = 255;
   hsv.sat = 240;
   for( int i = 0; i < numPixels; i++) {
       pixels[i] = hsv;
-      hsv.hue += hueStep;
+      currentHue += hueStep;
+      hsv.hue = (currentHue % 25500) / 100;
   }
   
   nscale8_video(pixels, numPixels, brightness);

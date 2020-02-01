@@ -16,12 +16,12 @@
 // TODO:  get status led stuff from JohnsKaleidoscopeMirror
 
 
-/***********
+/***********p
  * Options *
  ***********/
 
 #define ENABLE_DEBUG_PRINT
-//#define ENABLE_RADIO
+#define ENABLE_RADIO
 #define ENABLE_WATCHDOG
 
 
