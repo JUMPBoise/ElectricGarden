@@ -14,7 +14,7 @@
 #include <Wire.h> // not in ...build3 because it's clearly in Adafruit_VL53L0X.h
 #include <VL53L0X.h> // this is the header for the Pololu library for vl53l0x
 #define SPEAKER  6      // use pin D6 on Nano
-#define MAXFREQUENCY  1200
+
 
 // from Single_Buzzer.ino
 // Uncomment this line to use long range mode. This
@@ -61,23 +61,23 @@
 
 
 /* 
-    in setID(){...} , now: void setIdAndInit() 
+    in  void setIdAndInit() 
 	(  in the new arrangement using the Pololu code library, VL53L0X.cpp:
 			initialization is by using:   		bool VL53L0X::init(bool io_2v8)
 			i2c address assignment is by: 		void VL53L0X::setAddress(uint8_t new_address)  )
-	  1. initialize both sensor1 and sensor2  objects separately.
-       (it happens in setup{...}  )		
-    2. Reset all sensors by setting all of their XSHUT pins low for delay(10), then set all XSHUT high to bring out of reset
-    3. Keep sensor #1 awake by keeping XSHUT pin high
-    4. Put all other sensors into shutdown by pulling XSHUT pins low
-    5. Set a new address for sensor #1 using sensor1.setAddress(...), 
-	     Pick any number but 0x29 and it must be under 0x7F. Going with 0x30 to 0x3F is probably OK.
-	  6. Keep sensor #1 awake, and now bring sensor #2 out of reset by setting its XSHUT pin high.
-	  7. Set a new address for sensor #2 using sensor2.setAddress(...),
-       Pick any number but 0x29 and whatever you set the first sensor to.
+	  1. Reset all sensors by setting all of their XSHUT pins low ,
+    2. then, one sensor at at time:
+        a. after 10 ms, activate the sensor by making its XSHUT pin high, and leaving it high for rest of sketch
+        b. after 10 ms, initiate sensor using bool VL53L0X::init(bool io_2v8)
+        c. after 10 ms, assign sensor its new address using void VL53L0X::setAddress(uint8_t new_address) 
+    3. Pick any number but 0x29 and whatever addres the other sensors areassigned.  Addresses must be under 0x7F. 
+       Going with 0x30 to 0x3F is probably OK.
+    4. 10 ms after last address is assigned, start continuous reading of sensors, one sensor object at a time,
+       using void VL53L0X::startContinuous();
+	  
  */
 void setIdAndInit() {
-  // initialize all sensors in setup {...}
+ 
     // all reset
     
   digitalWrite(SHT_SENSOR1, LOW);    
@@ -85,18 +85,11 @@ void setIdAndInit() {
   digitalWrite(SHT_SENSOR3, LOW);
   delay(10);
   
-  // all unreset
+  // activating SENSOR1 
   digitalWrite(SHT_SENSOR1, HIGH);
-  digitalWrite(SHT_SENSOR2, HIGH);
-  digitalWrite(SHT_SENSOR3, HIGH);
   delay(10);
 
-  // activating SENSOR1 and reseting SENSOR2, SENSOR3
-  digitalWrite(SHT_SENSOR1, HIGH);
-  digitalWrite(SHT_SENSOR2, LOW);
-  digitalWrite(SHT_SENSOR3, LOW);
-
-  // sensor1.setTimeout(500); 
+  //init SENSOR1
   if (!sensor1.init())
   {
     Serial.println("Failed to detect and initialize first sensor!");
@@ -109,10 +102,9 @@ void setIdAndInit() {
 
   //  activate SENSOR2
   digitalWrite(SHT_SENSOR2, HIGH);
-  digitalWrite(SHT_SENSOR3, LOW);
   delay(10);
   
- //  sensor2.setTimeout(500); 
+  // init SENSOR2
   if (!sensor2.init())
   {
     Serial.println("Failed to detect and initialize second sensor!");
@@ -122,11 +114,11 @@ void setIdAndInit() {
   sensor2.setAddress(SENSOR2_ADDRESS);
   delay(10);
 
-    //  activate SENSOR3
+  //  activate SENSOR3
   digitalWrite(SHT_SENSOR3, HIGH);
   delay(10);
   
- //  sensor3.setTimeout(500); 
+  // init SENSOR3
   if (!sensor3.init())
   {
     Serial.println("Failed to detect and initialize third sensor!");
@@ -178,18 +170,22 @@ void read_dual_sensors() {
 }
 
 void pitch(uint16_t dist){
-  
+
+   #define MAXDISTANCE  1200
+   static uint16_t last_frequency;
    uint16_t frequency = dist; //need not be identically equal
-   
-   if(frequency <= MAXFREQUENCY ){
+
+   if(dist <= MAXDISTANCE ){
           tone(SPEAKER, frequency );
+          last_frequency = frequency; 
 #ifdef ENABLE_SERIAL
           Serial.print("  frequency = ");
-          Serial.println(frequency);
+          Serial.print(frequency);
           
           } else {
             //  noTone(SPEAKER); // comment out noTone() to sustain last tone
-            Serial.println("  frequency sustained"); 
+            Serial.print("  last_frequency = "); 
+            Serial.print( last_frequency);
           }
 #endif
 }
@@ -215,16 +211,29 @@ void commandPot(int SS, int reg, int level) {
 
 void volume(uint16_t dist){
 
-// map distances from TOF sensor (30 mm to 1000 mm) to the 129 steps,
+// map distances from TOF sensor  to the 129 steps,
 // (0 to 128) of the MCP4231 103E digital potentiometer
 
-#define BOTTOMRANGE 100
-#define TOPRANGE 500
+#define MAXDISTANCE2 800
+
+#define BOTTOMRANGE 30
+#define TOPRANGE 600
 #define LOSTEP 0
 #define HISTEP 128
 
+uint16_t volumeLevel;
+static uint16_t lastVolumeLevel; 
+
+if (dist >= MAXDISTANCE2){
+     volumeLevel = lastVolumeLevel;
+#ifdef ENABLE_SERIAL  
+    Serial.print(" lastVolumeLevel = ");
+    Serial.print(volumeLevel);
+#endif
+    }else {
+
 uint16_t rangeStep = (TOPRANGE-BOTTOMRANGE)/(HISTEP - LOSTEP);
-uint16_t volumeLevel = LOSTEP;
+volumeLevel = LOSTEP;
 if (dist >= TOPRANGE ){
     volumeLevel = HISTEP;
     } else { 
@@ -239,10 +248,13 @@ if (dist >= TOPRANGE ){
         }
     }        
 
+    lastVolumeLevel = volumeLevel;
     #ifdef ENABLE_SERIAL  
     Serial.print(" volumeLevel = ");
-    Serial.println(volumeLevel);
+    Serial.print(volumeLevel);
     #endif
+    }
+    
     commandPot(SS1 ,REG0, volumeLevel); // sets wiper on pot pins P0W
     commandPot(SS1 ,REG1, volumeLevel); // sets wiper on pot pins P1W
   
