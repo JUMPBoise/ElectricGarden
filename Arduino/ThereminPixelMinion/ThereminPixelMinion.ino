@@ -20,7 +20,7 @@
  * Options *
  ***********/
 
-#define ENABLE_DEBUG_PRINT
+//#define ENABLE_DEBUG_PRINT
 #define ENABLE_RADIO
 #define ENABLE_WATCHDOG
 
@@ -57,10 +57,11 @@
  ******************************/
 
 // Enable only one of these.
-//#define TARGET_IS_TREE
+//#define TARGET_IS_OLD_TREE
+#define TARGET_IS_NEW_TREE
 //#define TARGET_IS_CLOUD
 //#define TARGET_IS_ROSS_DEVL
-#define TARGET_IS_STRIP_TESTER
+//#define TARGET_IS_STRIP_TESTER
 
 
 
@@ -74,28 +75,35 @@
 #define RGB_LED_BLUE_PIN 6
 #define SIMULATION_PIN A1 
 
-#if defined(TARGET_IS_TREE)
-  // ---------- trees ----------
+// ---------- old trees ----------
+#if defined(TARGET_IS_OLD_TREE)
   #define NUM_STRIPS 1
   #define MAX_SECTIONS_PER_STRIP 2
   constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {150, 50} };
-  constexpr uint8_t overallBrightness = 64;
+  constexpr uint8_t overallBrightness = 160;
   constexpr uint32_t colorCorrection = 0xFFFF66;
+// ---------- new trees ----------
+#elif defined(TARGET_IS_NEW_TREE)
+  #define NUM_STRIPS 2
+  #define MAX_SECTIONS_PER_STRIP 1
+  constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {150}, {50} };
+  constexpr uint8_t overallBrightness = 255;
+  constexpr uint32_t colorCorrection = 0xFFFF66;
+// ---------- clouds ----------
 #elif defined(TARGET_IS_CLOUD)
-  // ---------- clouds ----------
   #define NUM_STRIPS 1
   #define MAX_SECTIONS_PER_STRIP 1
   constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {255} };
   constexpr uint8_t overallBrightness = 255;
+// ---------- strip tester ----------
 #elif defined(TARGET_IS_STRIP_TESTER)
-  // ---------- strip tester ----------
   #define NUM_STRIPS 1
   #define MAX_SECTIONS_PER_STRIP 1
   constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {150} };
   constexpr uint8_t overallBrightness = 255;
   constexpr uint32_t colorCorrection = 0xFFFF66;
+// ---------- Ross's development board ----------
 #elif defined(TARGET_IS_ROSS_DEVL)
-  // ---------- Ross's development board ----------
   #define NUM_STRIPS 1
   #define MAX_SECTIONS_PER_STRIP 2
   constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {30, 66} };
