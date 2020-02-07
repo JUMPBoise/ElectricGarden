@@ -57,8 +57,8 @@
  ******************************/
 
 // Enable only one of these.
-//#define TARGET_IS_OLD_TREE
-#define TARGET_IS_NEW_TREE
+#define TARGET_IS_OLD_TREE
+//#define TARGET_IS_NEW_TREE
 //#define TARGET_IS_CLOUD
 //#define TARGET_IS_ROSS_DEVL
 //#define TARGET_IS_STRIP_TESTER
@@ -80,7 +80,7 @@
   #define NUM_STRIPS 1
   #define MAX_SECTIONS_PER_STRIP 2
   constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {150, 50} };
-  constexpr uint8_t overallBrightness = 160;
+  constexpr uint8_t overallBrightness = 200;
   constexpr uint32_t colorCorrection = 0xFFFF66;
 // ---------- new trees ----------
 #elif defined(TARGET_IS_NEW_TREE)
