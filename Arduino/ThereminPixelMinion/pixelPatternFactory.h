@@ -17,6 +17,7 @@
 #include "MiddleOut.h"
 #include "OutsideIn.h"
 #include "Stripes.h"
+#include "PlasmaBall.h"
 #include "SectionLocator.h"
 #include "StripTest.h"
 
@@ -24,6 +25,8 @@
 static PixelPattern* pixelPatternFactory(uint8_t patternId)
 {
   switch(patternId) {
+    case PlasmaBall::id:
+      return new PlasmaBall;
     case Stripes::id:
       return new Stripes;
     case MiddleOut::id:
