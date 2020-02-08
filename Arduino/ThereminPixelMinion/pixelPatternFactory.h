@@ -14,6 +14,7 @@
 
 #include "PixelPattern.h"
 #include "Rainbow.h"
+#include "MiddleOut.h"
 #include "SectionLocator.h"
 #include "StripTest.h"
 
@@ -21,6 +22,8 @@
 static PixelPattern* pixelPatternFactory(uint8_t patternId)
 {
   switch(patternId) {
+    case MiddleOut::id:
+      return new MiddleOut;
     case Rainbow::id:
       return new Rainbow;
     case SectionLocator::id:
