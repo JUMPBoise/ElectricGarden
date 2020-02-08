@@ -2,7 +2,8 @@
 // based on theramin_build4.ino which is working well,
 // but is using 32 ms per loop{...}.
 // I just tested ...build5 at 11:30 pm on 2-7-2020 and 
-// it is using 1.8 ms per loop{...}
+// it is using 2 ms per loop{...}
+// last mod at 2:15 pm 2/8/2020
 
 
 // the point of ...build5 is to use public functions of the Pololu library
