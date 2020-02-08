@@ -22,7 +22,7 @@
 
 #define ENABLE_DEBUG_PRINT
 #define ENABLE_RADIO
-#define ENABLE_WATCHDOG
+//#define ENABLE_WATCHDOG
 
 
 
@@ -57,8 +57,8 @@
  ******************************/
 
 // Enable only one of these.
-#define TARGET_IS_OLD_TREE
-//#define TARGET_IS_NEW_TREE
+//#define TARGET_IS_OLD_TREE
+#define TARGET_IS_NEW_TREE
 //#define TARGET_IS_CLOUD
 //#define TARGET_IS_ROSS_DEVL
 //#define TARGET_IS_STRIP_TESTER
@@ -170,7 +170,7 @@ constexpr int16_t minValidDistance = 0;
 constexpr int16_t maxValidDistance = 4000;
 
 // the list of patterns that can be selected and displayed
-constexpr uint8_t patternIds[] = {PlasmaBall:id, Stripes::id, OutsideIn::id, MiddleOut::id, Rainbow::id, SectionLocator::id, StripTest::id};
+constexpr uint8_t patternIds[] = {PlasmaBall::id, Stripes::id, OutsideIn::id, MiddleOut::id, Rainbow::id, SectionLocator::id, StripTest::id};
 constexpr uint8_t numPatternIds = sizeof(patternIds) / sizeof(uint8_t);
 
 // The defaut pattern is the active pattern upon startup and remains the active

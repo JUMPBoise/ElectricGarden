@@ -27,7 +27,7 @@ class PixelPattern {
     PixelPattern(const PixelPattern&) = delete;
     PixelPattern& operator =(const PixelPattern&) = delete;
 
-    void init(
+    virtual void init(
       CRGB* pixels,
       uint8_t numPixels,
       uint8_t stripNum,
