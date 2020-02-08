@@ -66,7 +66,7 @@
 
 
 /*********************************************
- * Implementation and Behavior Configuration *
+ * Implementation and Behavior Configuration *f
  *********************************************/
 
 #define LAMP_TEST_PIN A0
@@ -170,12 +170,12 @@ constexpr int16_t minValidDistance = 0;
 constexpr int16_t maxValidDistance = 4000;
 
 // the list of patterns that can be selected and displayed
-constexpr uint8_t patternIds[] = {MiddleOut::id, Rainbow::id, SectionLocator::id, StripTest::id};
+constexpr uint8_t patternIds[] = {Stripes::id, OutsideIn::id, MiddleOut::id, Rainbow::id, SectionLocator::id, StripTest::id};
 constexpr uint8_t numPatternIds = sizeof(patternIds) / sizeof(uint8_t);
 
 // The defaut pattern is the active pattern upon startup and remains the active
 // pattern until measurements with a different pattern id are received or simulated.
-constexpr uint8_t defaultPatternId = MiddleOut::id;
+constexpr uint8_t defaultPatternId = Stripes::id;
 
 
 
