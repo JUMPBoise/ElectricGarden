@@ -13,6 +13,7 @@
 #pragma once
 
 #include "PixelPattern.h"
+#include "Tetris.h"
 #include "Rainbow.h"
 #include "MiddleOut.h"
 #include "OutsideIn.h"
@@ -27,6 +28,8 @@ static PixelPattern* pixelPatternFactory(uint8_t patternId)
   switch(patternId) {
     case PlasmaBall::id:
       return new PlasmaBall;
+    case Tetris::id:
+      return new Tetris;
     case Stripes::id:
       return new Stripes;
     case MiddleOut::id:
