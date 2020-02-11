@@ -297,29 +297,6 @@ pinMode(SHT_SENSOR3,OUTPUT);
 
   setIdAndInit();
 
-
-  #if defined LONG_RANGE
-  // lower the return signal rate limit (default is 0.25 MCPS)
-  sensor1.setSignalRateLimit(0.1);
-  sensor2.setSignalRateLimit(0.1);
-  // increase laser pulse periods (defaults are 14 and 10 PCLKs)
-  sensor1.setVcselPulsePeriod(VL53L0X::VcselPeriodPreRange, 18);
-  sensor1.setVcselPulsePeriod(VL53L0X::VcselPeriodFinalRange, 14);
-  sensor2.setVcselPulsePeriod(VL53L0X::VcselPeriodPreRange, 18);
-  sensor2.setVcselPulsePeriod(VL53L0X::VcselPeriodFinalRange, 14);
-#endif
-
-#if defined HIGH_SPEED
-  // reduce timing budget to 20 ms (default is about 33 ms)
-sensor1.setMeasurementTimingBudget(20000);
-sensor2.setMeasurementTimingBudget(20000);
-#elif defined HIGH_ACCURACY
-  // increase timing budget to 200 ms
-  sensor1.setMeasurementTimingBudget(200000);
-  sensor2.setMeasurementTimingBudget(200000);
-#endif
-
- 
 }
 
 void loop() {
