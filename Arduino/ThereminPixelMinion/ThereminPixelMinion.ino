@@ -60,8 +60,9 @@
 //#define TARGET_IS_OLD_TREE
 //#define TARGET_IS_NEW_TREE
 //#define TARGET_IS_CLOUD
-#define TARGET_IS_LARGE_GIRAFFE_BODY
+#define TARGET_IS_GIRAFFE_BODY
 //#define TARGET_IS_LARGE_GIRAFFE_LEGS
+//#define TARGET_IS_SMALL_GIRAFFE_LEGS
 //#define TARGET_IS_ROSS_DEVL
 //#define TARGET_IS_STRIP_TESTER
 
@@ -97,18 +98,25 @@
   #define MAX_SECTIONS_PER_STRIP 1
   constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {255} };
   constexpr uint8_t overallBrightness = 255;
-// ---------- large giraffe ----------
-#elif defined(TARGET_IS_LARGE_GIRAFFE_BODY)
+// ---------- giraffe body ----------
+#elif defined(TARGET_IS_GIRAFFE_BODY)
   #define NUM_STRIPS 1
   #define MAX_SECTIONS_PER_STRIP 1
   constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {250} };
   constexpr uint8_t overallBrightness = 255;
   constexpr uint32_t colorCorrection = 0xFFFF66;
-// ---------- large giraffe ----------
+// ---------- large giraffe legs ----------
 #elif defined(TARGET_IS_LARGE_GIRAFFE_LEGS)
   #define NUM_STRIPS 1
   #define MAX_SECTIONS_PER_STRIP 1
-  constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {100} };
+  constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {150} };
+  constexpr uint8_t overallBrightness = 255;
+  constexpr uint32_t colorCorrection = 0xFFFF66;
+// ---------- small giraffe legs ----------
+#elif defined(TARGET_IS_SMALL_GIRAFFE_LEGS)
+  #define NUM_STRIPS 1
+  #define MAX_SECTIONS_PER_STRIP 1
+  constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {75} };
   constexpr uint8_t overallBrightness = 255;
   constexpr uint32_t colorCorrection = 0xFFFF66;
 // ---------- strip tester ----------
@@ -186,7 +194,14 @@ constexpr int16_t minValidDistance = 0;
 constexpr int16_t maxValidDistance = 4000;
 
 // the list of patterns that can be selected and displayed
-constexpr uint8_t patternIds[] = {PlasmaBall::id, Stripes::id,   OutsideIn::id, MiddleOut::id, Rainbow::id, SectionLocator::id, StripTest::id};
+constexpr uint8_t patternIds[] = {
+    PlasmaBall::id,
+    Stripes::id,
+    OutsideIn::id,
+    MiddleOut::id,
+    Rainbow::id,
+    SectionLocator::id,
+    StripTest::id};
 constexpr uint8_t numPatternIds = sizeof(patternIds) / sizeof(uint8_t);
 
 // The defaut pattern is the active pattern upon startup and remains the active
