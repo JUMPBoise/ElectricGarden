@@ -20,7 +20,7 @@
  * Options *
  ***********/
 
-#define ENABLE_DEBUG_PRINT
+//#define ENABLE_DEBUG_PRINT
 #define ENABLE_RADIO
 //#define ENABLE_WATCHDOG
 
@@ -58,8 +58,10 @@
 
 // Enable only one of these.
 //#define TARGET_IS_OLD_TREE
-#define TARGET_IS_NEW_TREE
+//#define TARGET_IS_NEW_TREE
 //#define TARGET_IS_CLOUD
+#define TARGET_IS_LARGE_GIRAFFE_BODY
+//#define TARGET_IS_LARGE_GIRAFFE_LEGS
 //#define TARGET_IS_ROSS_DEVL
 //#define TARGET_IS_STRIP_TESTER
 
@@ -95,6 +97,20 @@
   #define MAX_SECTIONS_PER_STRIP 1
   constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {255} };
   constexpr uint8_t overallBrightness = 255;
+// ---------- large giraffe ----------
+#elif defined(TARGET_IS_LARGE_GIRAFFE_BODY)
+  #define NUM_STRIPS 1
+  #define MAX_SECTIONS_PER_STRIP 1
+  constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {250} };
+  constexpr uint8_t overallBrightness = 255;
+  constexpr uint32_t colorCorrection = 0xFFFF66;
+// ---------- large giraffe ----------
+#elif defined(TARGET_IS_LARGE_GIRAFFE_LEGS)
+  #define NUM_STRIPS 1
+  #define MAX_SECTIONS_PER_STRIP 1
+  constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {100} };
+  constexpr uint8_t overallBrightness = 255;
+  constexpr uint32_t colorCorrection = 0xFFFF66;
 // ---------- strip tester ----------
 #elif defined(TARGET_IS_STRIP_TESTER)
   #define NUM_STRIPS 1
@@ -170,7 +186,7 @@ constexpr int16_t minValidDistance = 0;
 constexpr int16_t maxValidDistance = 4000;
 
 // the list of patterns that can be selected and displayed
-constexpr uint8_t patternIds[] = {PlasmaBall::id, Stripes::id, OutsideIn::id, MiddleOut::id, Rainbow::id, SectionLocator::id, StripTest::id};
+constexpr uint8_t patternIds[] = {PlasmaBall::id, Stripes::id,   OutsideIn::id, MiddleOut::id, Rainbow::id, SectionLocator::id, StripTest::id};
 constexpr uint8_t numPatternIds = sizeof(patternIds) / sizeof(uint8_t);
 
 // The defaut pattern is the active pattern upon startup and remains the active
@@ -750,8 +766,8 @@ void initPatterns()
           Serial.print(F(" for strip "));
           Serial.print(iStrip);
           Serial.print(F(" section "));
-          Serial.println(iSection);
-          Serial.print(F(" failed."));
+          Serial.print(iSection);
+          Serial.println(F(" failed."));
 #endif
         }
         sectionOffset += numPixelsInSection;
