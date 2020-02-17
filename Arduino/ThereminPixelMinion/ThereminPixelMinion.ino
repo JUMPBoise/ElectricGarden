@@ -12,15 +12,14 @@
  ****************************************************************************/
 
 
-// TODO:  force the default pattern if no data received for some predetermined period (5 seconds or so)
 // TODO:  get status led stuff from JohnsKaleidoscopeMirror
 
 
-/***********p
+/***********
  * Options *
  ***********/
 
-#define ENABLE_DEBUG_PRINT
+//#define ENABLE_DEBUG_PRINT
 #define ENABLE_RADIO
 //#define ENABLE_WATCHDOG
 
@@ -57,9 +56,12 @@
  ******************************/
 
 // Enable only one of these.
-//#define TARGET_IS_OLD_TREE
-#define TARGET_IS_NEW_TREE
+#define TARGET_IS_OLD_TREE
+//#define TARGET_IS_NEW_TREE
 //#define TARGET_IS_CLOUD
+//#define TARGET_IS_GIRAFFE_BODY
+//#define TARGET_IS_LARGE_GIRAFFE_LEGS
+//#define TARGET_IS_SMALL_GIRAFFE_LEGS
 //#define TARGET_IS_ROSS_DEVL
 //#define TARGET_IS_STRIP_TESTER
 
@@ -95,6 +97,27 @@
   #define MAX_SECTIONS_PER_STRIP 1
   constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {255} };
   constexpr uint8_t overallBrightness = 255;
+// ---------- giraffe body ----------
+#elif defined(TARGET_IS_GIRAFFE_BODY)
+  #define NUM_STRIPS 1
+  #define MAX_SECTIONS_PER_STRIP 1
+  constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {250} };
+  constexpr uint8_t overallBrightness = 255;
+  constexpr uint32_t colorCorrection = 0xFFFF66;
+// ---------- large giraffe legs ----------
+#elif defined(TARGET_IS_LARGE_GIRAFFE_LEGS)
+  #define NUM_STRIPS 1
+  #define MAX_SECTIONS_PER_STRIP 1
+  constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {150} };
+  constexpr uint8_t overallBrightness = 255;
+  constexpr uint32_t colorCorrection = 0xFFFF66;
+// ---------- small giraffe legs ----------
+#elif defined(TARGET_IS_SMALL_GIRAFFE_LEGS)
+  #define NUM_STRIPS 1
+  #define MAX_SECTIONS_PER_STRIP 1
+  constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {75} };
+  constexpr uint8_t overallBrightness = 255;
+  constexpr uint32_t colorCorrection = 0xFFFF66;
 // ---------- strip tester ----------
 #elif defined(TARGET_IS_STRIP_TESTER)
   #define NUM_STRIPS 1
@@ -169,9 +192,34 @@ constexpr int16_t maxValidPatternNum = 255;
 constexpr int16_t minValidDistance = 0;
 constexpr int16_t maxValidDistance = 4000;
 
+constexpr uint8_t allOffPatternId = 255;
+
 // the list of patterns that can be selected and displayed
-constexpr uint8_t patternIds[] = {PlasmaBall::id, Stripes::id, OutsideIn::id, MiddleOut::id, Rainbow::id, SectionLocator::id, StripTest::id};
+constexpr uint8_t patternIds[] = {
+  MiddleOut::id,
+  OutsideIn::id,
+  PlasmaBall::id,
+  Rainbow::id,
+  SectionLocator::id,
+  Stripes::id,
+  StripTest::id,
+  YellowGiraffe::id};
 constexpr uint8_t numPatternIds = sizeof(patternIds) / sizeof(uint8_t);
+
+#if defined(TARGET_IS_GIRAFFE_BODY) || defined(TARGET_IS_LARGE_GIRAFFE_LEGS) || defined(TARGET_IS_SMALL_GIRAFFE_LEGS)
+  #define USE_PATTERN_XREF
+  constexpr uint8_t selectedPatternIdIdx = 0;
+  constexpr uint8_t displayPatternIdIdx = 1;
+  constexpr uint8_t displayPatternIdXref[numPatternIds][2] = {
+    {PlasmaBall::id    , YellowGiraffe::id},
+    {Stripes::id       , YellowGiraffe::id},
+    {OutsideIn::id     , YellowGiraffe::id},
+    {MiddleOut::id     , YellowGiraffe::id},
+    {Rainbow::id       , YellowGiraffe::id},
+    {SectionLocator::id, SectionLocator::id},
+    {StripTest::id     , StripTest::id}
+  };
+#endif
 
 // The defaut pattern is the active pattern upon startup and remains the active
 // pattern until measurements with a different pattern id are received or simulated.
@@ -193,8 +241,8 @@ constexpr uint8_t defaultPatternId = PlasmaBall::id;
 // ISM: 2400-2500;  ham: 2390-2450
 // WiFi ch. centers: 1:2412, 2:2417, 3:2422, 4:2427, 5:2432, 6:2437, 7:2442,
 //                   8:2447, 9:2452, 10:2457, 11:2462, 12:2467, 13:2472, 14:2484
-// Illumicone widgets use channel 97, so it is wise to pick something else.
-#define RF_CHANNEL 97  //80
+// The Electric Garden theremin uses channel 80.  Illumicone uses channel 97.
+#define RF_CHANNEL 80
 
 // Nwdgt, where N indicates the pipe number (0-6) and payload type (0: stress test;
 // 1: position & velocity; 2: measurement vector; 3,4: undefined; 5: custom
@@ -304,10 +352,31 @@ uint16_t freeRam()
  * Pattern Rendering *
  *********************/
 
+// Some target structures should display a different set or subset of patterns
+// rather than the full set.  For those structures, a cross reference table maps the
+// selected pattern id to the id of the pattern that should be displayed.  Given the
+// selected pattern id, this function returns the id of the pattern to display.
+uint8_t resolveDisplayPatternId(uint8_t selectedPatternId) {
+#ifdef USE_PATTERN_XREF
+  for (uint8_t i = 0; i < numPatternIds; ++i) {
+    if (displayPatternIdXref[i][selectedPatternIdIdx] == selectedPatternId) {
+      return displayPatternIdXref[i][displayPatternIdIdx];
+    }
+  }
+  // If there is no xref entry for the selected pattern, turn off the display.
+  return allOffPatternId;
+#else
+  // We're not using the xref table, so we display the selected pattern.
+  return selectedPatternId;
+#endif
+}
+
+
 void startPattern()
 {
+  uint8_t displayPatternId = resolveDisplayPatternId(activePatternId);
   for (uint8_t iPattern = 0; iPattern < numPatternIds; ++iPattern) {
-    if (patternIds[iPattern] != activePatternId) {
+    if (patternIds[iPattern] != displayPatternId) {
       continue;
     }
     for (uint8_t iStrip = 0; iStrip < NUM_STRIPS; ++iStrip) {
@@ -351,8 +420,10 @@ void updatePattern()
     return;
   }
 
-  // Pattern 255 turns everything off.
-  if (activePatternId == 255) {
+  uint8_t displayPatternId = resolveDisplayPatternId(activePatternId);
+
+  // Pattern id allOffPatternId turns everything off.
+  if (displayPatternId == allOffPatternId) {
     for (uint8_t iStrip = 0; iStrip < NUM_STRIPS; ++iStrip) {
       if (pixels[iStrip] != nullptr) {
         fill_solid(pixels[iStrip], numPixels[iStrip], CRGB::Black);
@@ -361,7 +432,7 @@ void updatePattern()
   }
 
   for (uint8_t iPattern = 0; iPattern < numPatternIds; ++iPattern) {
-    if (patternIds[iPattern] != activePatternId) {
+    if (patternIds[iPattern] != displayPatternId) {
       continue;
     }
     for (uint8_t iStrip = 0; iStrip < NUM_STRIPS; ++iStrip) {
@@ -750,8 +821,8 @@ void initPatterns()
           Serial.print(F(" for strip "));
           Serial.print(iStrip);
           Serial.print(F(" section "));
-          Serial.println(iSection);
-          Serial.print(F(" failed."));
+          Serial.print(iSection);
+          Serial.println(F(" failed."));
 #endif
         }
         sectionOffset += numPixelsInSection;
