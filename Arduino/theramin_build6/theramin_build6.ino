@@ -49,6 +49,53 @@
 #define SHT_SENSOR2 3  // D3 is the Nano pin conected to XSHUT for sensor2
 #define SHT_SENSOR3 4  // D4 is the Nano pin conected to XSHUT for sensor3
 
+static constexpr uint8_t widgetId = 30;
+static constexpr uint32_t activeTxIntervalMs = 50L;
+static constexpr uint32_t inactiveTxIntervalMs = 2000L;  // should be a multiple of activeTxIntervalMs
+
+
+// ---------- radio configuration ----------
+
+// Nwdgt, where N indicates the payload type (0: stress test; 1: position
+// and velocity; 2: measurement vector; 3,4: undefined; 5: custom)
+#define TX_PIPE_ADDRESS "2wdgt"
+
+// Set WANT_ACK to false, TX_RETRY_DELAY_MULTIPLIER to 0, and TX_MAX_RETRIES
+// to 0 for fire-and-forget.  To enable retries and delivery failure detection,
+// set WANT_ACK to true.  The delay between retries is 250 us multiplied by
+// TX_RETRY_DELAY_MULTIPLIER.  To help prevent repeated collisions, use 1, a
+// prime number (2, 3, 5, 7, 11, 13), or 15 (the maximum) for TX_MAX_RETRIES.
+#define WANT_ACK false
+#define TX_RETRY_DELAY_MULTIPLIER 0
+#define TX_MAX_RETRIES 0
+
+// Possible data rates are RF24_250KBPS, RF24_1MBPS, or RF24_2MBPS.  (2 Mbps
+// works with genuine Nordic Semiconductor chips only, not the counterfeits.)
+#define DATA_RATE RF24_1MBPS
+
+// Valid CRC length values are RF24_CRC_8, RF24_CRC_16, and RF24_CRC_DISABLED
+#define CRC_LENGTH RF24_CRC_16
+
+// nRF24 frequency range:  2400 to 2525 MHz (channels 0 to 125)
+// ISM: 2400-2500;  ham: 2390-2450
+// WiFi ch. centers: 1:2412, 2:2417, 3:2422, 4:2427, 5:2432, 6:2437, 7:2442,
+//                   8:2447, 9:2452, 10:2457, 11:2462, 12:2467, 13:2472, 14:2484
+#define RF_CHANNEL 80   // Electric Garden Theremin is on ch. 80, Illumicone is on ch. 97
+
+// RF24_PA_MIN = -18 dBm, RF24_PA_LOW = -12 dBm, RF24_PA_HIGH = -6 dBm, RF24_PA_MAX = 0 dBm
+#define RF_POWER_LEVEL RF24_PA_MAX
+
+
+RF24 radio(9, 10);    // CE on pin 9, CSN on pin 10, also uses SPI bus (SCK on 13, MISO on 12, MOSI on 11)
+
+static MeasurementVectorPayload payload;
+
+static bool isActive;
+static bool wasActive;
+
+// TODO:  Need to select the pattern somehow.
+static uint8_t patternNum = 1;
+
 uint16_t dist1, dist2, dist3; // distN is global
 bool deadstickTimeout = false;
 unsigned long millis(void); // a function prototype
@@ -276,6 +323,31 @@ void setVolumeLevel(uint8_t volumeLevel) {
       commandPot(SS1 ,REG1, volumeLevel); // sets wiper on pot pins P1W
 }
 
+
+void broadcastMeasurements()
+{
+  constexpr uint8_t numDistanceMeasmts = 3;
+
+  payload.measurements[0] = patternNum;
+  payload.measurements[1] = dist1;
+  payload.measurements[2] = dist2;
+  payload.measurements[3] = dist3;
+
+  payload.widgetHeader.isActive = isActive;
+
+  if (!radio.write(&payload, sizeof(WidgetHeader) + sizeof(int16_t) * (numDistanceMeasmts + 1), !WANT_ACK)) {
+#ifdef ENABLE_DEBUG_PRINT
+    Serial.println(F("radio.write failed."));
+#endif
+  }
+  else {
+#ifdef ENABLE_DEBUG_PRINT
+    Serial.println(F("radio.write succeeded."));
+#endif
+  }
+}
+
+
 void setup() {
 
 #ifdef ENABLE_STOPWATCH
@@ -287,7 +359,6 @@ Serial.begin(115200);
 delay(500);            
                        // consider using: while (! Serial) { delay(1); }
                        // but you don't want sketch to fail if no serial interface!
-
 
   // from spi_demo_nano.ino
 
@@ -312,22 +383,29 @@ pinMode(SHT_SENSOR3,OUTPUT);
 
   setIdAndInit();
 
+  configureRadio(radio, TX_PIPE_ADDRESS, WANT_ACK, TX_RETRY_DELAY_MULTIPLIER,
+                 TX_MAX_RETRIES, CRC_LENGTH, RF_POWER_LEVEL, DATA_RATE,
+                 RF_CHANNEL);
+
+  payload.widgetHeader.id = widgetId;
+  payload.widgetHeader.channel = 0;
 }
+
 
 void loop() {
 
 #define DEAD_RANGE 1200ul
 #define DEADSTICK_TIMEOUT_PERIOD 5000ul
 
-static unsigned long timeLastUsed;
+  static unsigned long timeLastUsed;
+  static int32_t lastTxMs;
 
-uint8_t Volume;
-uint16_t Pitch;
+  uint8_t Volume;
+  uint16_t Pitch;
 
-
+  uint32_t now = millis();
 
   read_three_sensors();
-
 
   Serial.print("dist1: ");
   Serial.print( dist1);
@@ -336,80 +414,76 @@ uint16_t Pitch;
   Serial.print("   dist3: ");
   Serial.print( dist3);
   
-;
+  // here we'll call the musical functions
+  // at this time there are only two output parameters, Pitch and Volume, which will be
+  // global variables. 
+  // if no one uses the sensors for DEADSTICK_TIMEOUT_PERIOD milliseconds, then we'll stop all sound
+  // pitch will be adjustable over a wider range in software
+  // sensor1 will be pitch, sensor2 will be volume and sensor3 will be special effects
+  //       first (maybe only?) special effect: wammy bar, which bends pitch up and 
+  //       returns to un-modified pitch when not used.
 
-// here we'll call the musical functions
-// at this time there are only two output parameters, Pitch and Volume, which will be
-// global variables. 
-// if no one uses the sensors for DEADSTICK_TIMEOUT_PERIOD milliseconds, then we'll stop all sound
-// pitch will be adjustable over a wider range in software
-// sensor1 will be pitch, sensor2 will be volume and sensor3 will be special effects
-//       first (maybe only?) special effect: wammy bar, which bends pitch up and 
-//       returns to un-modified pitch when not used.
+  if (!(dist1 > DEAD_RANGE && dist2 > DEAD_RANGE && dist3 > DEAD_RANGE)) {
+    timeLastUsed = now;
+  }
 
+  Serial.println();
+  Serial.print(" timeLastUsed: ");
+  Serial.print(timeLastUsed);
+  Serial.print(" now: ");
+  Serial.print( now );
+  Serial.print(" delta: ");
+  Serial.println(now - timeLastUsed);
 
-
-if( !(dist1 > DEAD_RANGE && dist2 > DEAD_RANGE && dist3 > DEAD_RANGE) ){
-      timeLastUsed = millis();
-          }
-unsigned long timeNow = millis();
-
-
-Serial.println();
-Serial.print(" timeLastUsed: ");
-Serial.print( timeLastUsed );
-Serial.print(" timeNow: ");
-Serial.print( timeNow );
-Serial.print(" delta: ");
-Serial.println( timeNow-timeLastUsed ); 
-
-
-if( (timeNow-timeLastUsed)  > DEADSTICK_TIMEOUT_PERIOD ) { 
+  if ((now - timeLastUsed) > DEADSTICK_TIMEOUT_PERIOD) { 
      // declare a DEADSTICK_TIMEOUT
-    
-     Volume = 0;
-     setVolumeLevel(Volume);
-     Serial.println(" DEADSTICK_TIMEOUT ");
-/*     if(deadstickTimeout == false) {
-       deadstickTimeout = true;
-       // signal all radios that theramin is on DEADSTICK_TIMEOUT
-     } */
-    
-    } else {
-/*      if (deadstickTimeout == true) {
-            deadstickTimeout = false;
-            // signal all radios that DEADSTICK_TIMEOUT is over
-      } */
+    Volume = 0;
+    setVolumeLevel(Volume);
+    Serial.println(" DEADSTICK_TIMEOUT ");
+    deadstickTimeout = true;
+  }
+  else {
+    deadstickTimeout = false;
+  }
 
-      Pitch = getPitch(dist1);
- //   Pitch = bendPitch(Pitch, dist3);
-      Volume = getVolumeLevel(dist2);
+  Pitch = getPitch(dist1);
+  //Pitch = bendPitch(Pitch, dist3);
+  Volume = getVolumeLevel(dist2);
 
-      setPitch(Pitch);
-      setVolumeLevel(Volume);
+  setPitch(Pitch);
+  setVolumeLevel(Volume);
 
- Serial.print( "   Pitch = ");
- Serial.print( Pitch );
- Serial.print(" Volume = ");
- Serial.println( Volume );
-      
-    }
+  Serial.print( "   Pitch = ");
+  Serial.print( Pitch );
+  Serial.print(" Volume = ");
+  Serial.println( Volume );
  
-// #ifdef ENABLE_STOPWATCH, then time1 was initiaized to millis() in setup, 
-// and k, a static variable,  is initalized to zero on creation
+  // #ifdef ENABLE_STOPWATCH, then time1 was initiaized to millis() in setup, 
+  // and k, a static variable,  is initalized to zero on creation
 #ifdef ENABLE_STOPWATCH
   k++;
-  if (k >= 100){
-    
- unsigned long time2 = millis();
- Serial.print(" elapsed time for ");
- Serial.print( k );
- Serial.print(" loops is ");
- Serial.print( (time2-time1));
- Serial.println(" ms");
-     time1 = time2;
-     k=0;
+  if (k >= 100) {
+    unsigned long time2 = millis();
+    Serial.print(" elapsed time for ");
+    Serial.print(k);
+    Serial.print(" loops is ");
+    Serial.print((time2-time1));
+    Serial.println(" ms");
+    time1 = time2;
+    k=0;
   }
-  
 #endif
+
+  // The theremin is active when a deadstick timeout has not occurred.
+  isActive = !deadstickTimeout;
+
+  // Periodically broadcast the measurements to the pixel minions.
+  if (now - lastTxMs >= activeTxIntervalMs) {
+    // When the theremin isn't active, we don't need to broadcast measurements as often.
+    if (isActive || wasActive || now - lastTxMs >= inactiveTxIntervalMs) {
+      lastTxMs = now;
+      broadcastMeasurements();
+      wasActive = isActive;
+    }
+  }
 }
