@@ -20,8 +20,10 @@
 
 // #include <LibPrintf.h> // always compile serial and printf
 
+#define ENABLE_RADIO
+//#define ENABLE_DEBUG_PRINT
 #define ENABLE_LOOP_PRINT // comment out to drop printing in loop{...}
-#define ENABLE_STOPWATCH // comment out unless you want to to measure elapsed time between loops
+//#define ENABLE_STOPWATCH // comment out unless you want to to measure elapsed time between loops
 
 #ifdef ENABLE_STOPWATCH
   static unsigned long time1;
@@ -31,6 +33,12 @@
 // from Single_Buzzer.ino 
 #include <Wire.h> // not in ...build3 because it's clearly in Adafruit_VL53L0X.h
 #include <VL53L0X.h> // this is the header for the Pololu library for vl53l0x
+#include <RF24.h>
+
+#ifdef ENABLE_DEBUG_PRINT
+#include "printf.h"
+#endif
+
 #define SPEAKER  6      // use pin D6 on Nano
 
 // from spi_demo_nano.ino and is used to enable the digital potentiomenter
@@ -51,7 +59,7 @@
 
 static constexpr uint8_t widgetId = 30;
 static constexpr uint32_t activeTxIntervalMs = 50L;
-static constexpr uint32_t inactiveTxIntervalMs = 2000L;  // should be a multiple of activeTxIntervalMs
+static constexpr uint32_t inactiveTxIntervalMs = 500L;  // should be a multiple of activeTxIntervalMs
 
 
 // ---------- radio configuration ----------
@@ -69,6 +77,10 @@ static constexpr uint32_t inactiveTxIntervalMs = 2000L;  // should be a multiple
 #define TX_RETRY_DELAY_MULTIPLIER 0
 #define TX_MAX_RETRIES 0
 
+// Probably no need to ever set auto acknowledgement to false because the sender
+// can control whether or not acks are sent by using the NO_ACK bit.
+#define ACK_WIDGET_PACKETS true
+
 // Possible data rates are RF24_250KBPS, RF24_1MBPS, or RF24_2MBPS.  (2 Mbps
 // works with genuine Nordic Semiconductor chips only, not the counterfeits.)
 #define DATA_RATE RF24_1MBPS
@@ -84,6 +96,46 @@ static constexpr uint32_t inactiveTxIntervalMs = 2000L;  // should be a multiple
 
 // RF24_PA_MIN = -18 dBm, RF24_PA_LOW = -12 dBm, RF24_PA_HIGH = -6 dBm, RF24_PA_MAX = 0 dBm
 #define RF_POWER_LEVEL RF24_PA_MAX
+
+
+/**********************************************************
+ * Widget Packet Header and Payload Structure Definitions *
+ **********************************************************/
+
+union WidgetHeader {
+  struct {
+    uint8_t id       : 5;
+    uint8_t channel  : 2;
+    bool    isActive : 1;
+  };
+  uint8_t raw;
+};
+
+// pipe 0
+struct StressTestPayload {
+  WidgetHeader widgetHeader;
+  uint32_t     payloadNum;
+  uint32_t     numTxFailures;
+};
+
+// pipe 1
+struct PositionVelocityPayload {
+  WidgetHeader widgetHeader;
+  int16_t      position;
+  int16_t      velocity;
+};
+
+// pipe 2
+struct MeasurementVectorPayload {
+  WidgetHeader widgetHeader;
+  int16_t      measurements[15];
+};
+
+// pipe 5
+struct CustomPayload {
+  WidgetHeader widgetHeader;
+  uint8_t      buf[31];
+};
 
 
 RF24 radio(9, 10);    // CE on pin 9, CSN on pin 10, also uses SPI bus (SCK on 13, MISO on 12, MOSI on 11)
@@ -145,6 +197,10 @@ void setIdAndInit() {
   // setting address for SENSOR1
   sensor1.setAddress(SENSOR1_ADDRESS);
   delay(10);
+// Probably no need to ever set auto acknowledgement to false because the sender
+// can control whether or not acks are sent by using the NO_ACK bit.
+#define ACK_WIDGET_PACKETS true
+
 
   //  activate SENSOR2
   digitalWrite(SHT_SENSOR2, HIGH);
@@ -252,8 +308,9 @@ uint16_t getPitch(uint16_t dist){
 
 
 void setPitch(uint16_t freq) {
-       tone(SPEAKER, freq );// tone(pin,freq) sustains last freq unless notone() is called
+       tone(SPEAKER, freq );// tone(pin,freq) sustains last freq unless noTone() is called
 }
+
 
 void commandPot(int SS, int reg, int level) {
   // from spi_demo_nano.ino
@@ -329,9 +386,9 @@ void broadcastMeasurements()
   constexpr uint8_t numDistanceMeasmts = 3;
 
   payload.measurements[0] = patternNum;
-  payload.measurements[1] = dist1;
-  payload.measurements[2] = dist2;
-  payload.measurements[3] = dist3;
+  payload.measurements[1] = dist1 >= 0 && dist1 <= 1023 ? dist1 : 1023;
+  payload.measurements[2] = dist2 >= 0 && dist2 <= 1023 ? dist2 : 1023;
+  payload.measurements[3] = dist3 >= 0 && dist3 <= 1023 ? dist3 : 1023;
 
   payload.widgetHeader.isActive = isActive;
 
@@ -348,44 +405,83 @@ void broadcastMeasurements()
 }
 
 
+void configureRadio(
+  RF24&             radio,
+  const char*       writePipeAddress,
+  bool              wantAcks,
+  uint8_t           txRetryDelayMultiplier,
+  uint8_t           txMaxRetries,
+  rf24_crclength_e  crcLength,
+  rf24_pa_dbm_e     rfPowerLevel,
+  rf24_datarate_e   dataRate,
+  uint8_t           channel)
+{
+  radio.begin();
+
+  radio.setPALevel(rfPowerLevel);
+  radio.setRetries(txRetryDelayMultiplier, txMaxRetries);
+  radio.setDataRate(dataRate);
+  radio.setChannel(channel);
+  radio.enableDynamicAck();         // allow sending payloads with or without ack request
+  radio.enableDynamicPayloads();
+  radio.setCRCLength(crcLength);
+
+  radio.openWritingPipe((const uint8_t*) writePipeAddress);
+
+#ifdef ENABLE_DEBUG_PRINT
+  radio.printDetails();
+#endif
+
+  // Widgets only transmit data.
+  radio.stopListening();
+}
+
+
 void setup() {
 
 #ifdef ENABLE_STOPWATCH
     time1 = millis();
 #endif
 
-// printf_init(Serial);
-Serial.begin(115200);
-delay(500);            
+//huh?  printf_init(Serial);
+  Serial.begin(115200);
+#ifdef ENABLE_DEBUG_PRINT
+  printf_begin();
+#endif
+
+  delay(500);            
                        // consider using: while (! Serial) { delay(1); }
                        // but you don't want sketch to fail if no serial interface!
 
   // from spi_demo_nano.ino
 
+  pinMode(SHT_SENSOR1,OUTPUT);
+  pinMode(SHT_SENSOR2,OUTPUT);
+  pinMode(SHT_SENSOR3,OUTPUT);
+
   // setup slave select pins for output
   pinMode(SS1, OUTPUT);
+  // Deassert chip select for now so that we can talk to the radio module.
+  digitalWrite(SS1, HIGH);
 
-  // per instructions from arduino.cc/en/reference/SPI 
-  // set the Nano's SS pin, 11, to OUTPUT to make it 
-  // unuasable as a chip select for whole Nano board as a SPI slave
-  // also, we use pin D11 for MOSI, which is compatable with OUTPUT
-  pinMode(11,OUTPUT);
+// ======= vvv uh, no.
+//  // per instructions from arduino.cc/en/reference/SPI 
+//  // set the Nano's SS pin, 11, to OUTPUT to make it 
+//  // unuasable as a chip select for whole Nano board as a SPI slave
+//  // also, we use pin D11 for MOSI, which is compatable with OUTPUT
+//  pinMode(11,OUTPUT);
+// ======= ^^^ uh, no.
 
 //  initialize SPI 
-    SPI.begin(); // comment this out if your radio library initializes SPI
-
-
-pinMode(SHT_SENSOR1,OUTPUT);
-pinMode(SHT_SENSOR2,OUTPUT);
-pinMode(SHT_SENSOR3,OUTPUT);
-
-  Wire.begin();
-
-  setIdAndInit();
+//  SPI.begin(); // comment this out if your radio library initializes SPI
 
   configureRadio(radio, TX_PIPE_ADDRESS, WANT_ACK, TX_RETRY_DELAY_MULTIPLIER,
                  TX_MAX_RETRIES, CRC_LENGTH, RF_POWER_LEVEL, DATA_RATE,
                  RF_CHANNEL);
+
+  Wire.begin();
+
+  setIdAndInit();
 
   payload.widgetHeader.id = widgetId;
   payload.widgetHeader.channel = 0;
@@ -407,12 +503,12 @@ void loop() {
 
   read_three_sensors();
 
-  Serial.print("dist1: ");
-  Serial.print( dist1);
-  Serial.print("   dist2: ");
-  Serial.print( dist2); 
-  Serial.print("   dist3: ");
-  Serial.print( dist3);
+//  Serial.print("dist1: ");
+//  Serial.print( dist1);
+//  Serial.print("   dist2: ");
+//  Serial.print( dist2); 
+//  Serial.print("   dist3: ");
+//  Serial.print( dist3);
   
   // here we'll call the musical functions
   // at this time there are only two output parameters, Pitch and Volume, which will be
@@ -427,37 +523,40 @@ void loop() {
     timeLastUsed = now;
   }
 
-  Serial.println();
-  Serial.print(" timeLastUsed: ");
-  Serial.print(timeLastUsed);
-  Serial.print(" now: ");
-  Serial.print( now );
-  Serial.print(" delta: ");
-  Serial.println(now - timeLastUsed);
+//  Serial.println();
+//  Serial.print(" timeLastUsed: ");
+//  Serial.print(timeLastUsed);
+//  Serial.print(" now: ");
+//  Serial.print( now );
+//  Serial.print(" delta: ");
+//  Serial.println(now - timeLastUsed);
 
   if ((now - timeLastUsed) > DEADSTICK_TIMEOUT_PERIOD) { 
-     // declare a DEADSTICK_TIMEOUT
-    Volume = 0;
-    setVolumeLevel(Volume);
-    Serial.println(" DEADSTICK_TIMEOUT ");
-    deadstickTimeout = true;
+    if (!deadstickTimeout) {
+      // declare a DEADSTICK_TIMEOUT
+      Serial.println(" DEADSTICK_TIMEOUT ");
+      deadstickTimeout = true;
+      noTone(SPEAKER);
+    }
   }
   else {
     deadstickTimeout = false;
   }
 
-  Pitch = getPitch(dist1);
-  //Pitch = bendPitch(Pitch, dist3);
-  Volume = getVolumeLevel(dist2);
+  if (!deadstickTimeout) {
+    Pitch = getPitch(dist1);
+    //Pitch = bendPitch(Pitch, dist3);
+    Volume = getVolumeLevel(dist2);
 
-  setPitch(Pitch);
-  setVolumeLevel(Volume);
+    setPitch(Pitch);
+    setVolumeLevel(Volume);
 
-  Serial.print( "   Pitch = ");
-  Serial.print( Pitch );
-  Serial.print(" Volume = ");
-  Serial.println( Volume );
- 
+    //Serial.print( "   Pitch = ");
+    //Serial.print( Pitch );
+    //Serial.print(" Volume = ");
+    //Serial.println( Volume );
+  }
+   
   // #ifdef ENABLE_STOPWATCH, then time1 was initiaized to millis() in setup, 
   // and k, a static variable,  is initalized to zero on creation
 #ifdef ENABLE_STOPWATCH
