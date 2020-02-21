@@ -367,8 +367,9 @@ Serial.println( timeNow-timeLastUsed );
 if( (timeNow-timeLastUsed)  > DEADSTICK_TIMEOUT_PERIOD ) { 
      // declare a DEADSTICK_TIMEOUT
     
-     Volume = 0;
-     setVolumeLevel(Volume);
+//     Volume = 0;
+//     setVolumeLevel(Volume);
+      noTone(SPEAKER);
      Serial.println(" DEADSTICK_TIMEOUT ");
 /*     if(deadstickTimeout == false) {
        deadstickTimeout = true;
