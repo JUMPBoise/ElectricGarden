@@ -102,12 +102,12 @@ Wire Wire Line
 $Comp
 L power:GND #PWR?
 U 1 1 5E3F2EF4
-P 2000 3080
-F 0 "#PWR?" H 2000 2830 50  0001 C CNN
-F 1 "GND" H 2005 2907 50  0000 C CNN
-F 2 "" H 2000 3080 50  0001 C CNN
-F 3 "" H 2000 3080 50  0001 C CNN
-	1    2000 3080
+P 1770 3080
+F 0 "#PWR?" H 1770 2830 50  0001 C CNN
+F 1 "GND" H 1775 2907 50  0000 C CNN
+F 2 "" H 1770 3080 50  0001 C CNN
+F 3 "" H 1770 3080 50  0001 C CNN
+	1    1770 3080
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
@@ -198,4 +198,10 @@ Text Label 8050 7310 0    79   ~ 0
 dwgno._CFS-2-7-2020-A
 Text Label 8270 7630 0    55   ~ 0
 2-7-2020
+Wire Wire Line
+	2000 3080 1770 3080
+Text Label 1870 3140 0    31   ~ 0
+blue_wire_neg
+Text Label 2410 3140 0    31   ~ 0
+red_wire_pos
 $EndSCHEMATC

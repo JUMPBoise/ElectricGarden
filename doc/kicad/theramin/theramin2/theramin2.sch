@@ -14,21 +14,21 @@ Comment3 ""
 Comment4 ""
 $EndDescr
 $Comp
-L Device:Laserdiode_1A3C LD?
+L Device:Laserdiode_1A3C LD1
 U 1 1 5E3E4766
-P 2300 3080
-F 0 "LD?" H 2250 3365 50  0000 C CNN
-F 1 "Laserdiode_1A3C" H 2250 3274 50  0000 C CNN
-F 2 "" H 2200 3055 50  0001 C CNN
-F 3 "~" H 2330 2880 50  0001 C CNN
-	1    2300 3080
+P 2690 3080
+F 0 "LD1" H 2640 3365 50  0000 C CNN
+F 1 "Laserdiode_1A3C" H 2640 3274 50  0000 C CNN
+F 2 "" H 2590 3055 50  0001 C CNN
+F 3 "~" H 2720 2880 50  0001 C CNN
+	1    2690 3080
 	1    0    0    -1  
 $EndComp
 $Comp
-L Connector:RJ45 J?
+L Connector:RJ45 J1
 U 1 1 5E3E5EEE
 P 5060 2200
-F 0 "J?" H 4730 2204 50  0000 R CNN
+F 0 "J1" H 4730 2204 50  0000 R CNN
 F 1 "RJ45" H 4730 2295 50  0000 R CNN
 F 2 "" V 5060 2225 50  0001 C CNN
 F 3 "~" V 5060 2225 50  0001 C CNN
@@ -36,14 +36,14 @@ F 3 "~" V 5060 2225 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L Device:R R?
+L Device:R R1
 U 1 1 5E3E9A8A
-P 2880 3080
-F 0 "R?" V 2673 3080 50  0000 C CNN
-F 1 "100" V 2764 3080 50  0000 C CNN
-F 2 "" V 2810 3080 50  0001 C CNN
-F 3 "~" H 2880 3080 50  0001 C CNN
-	1    2880 3080
+P 2150 3080
+F 0 "R1" V 1943 3080 50  0000 C CNN
+F 1 "47" V 2034 3080 50  0000 C CNN
+F 2 "" V 2080 3080 50  0001 C CNN
+F 3 "~" H 2150 3080 50  0001 C CNN
+	1    2150 3080
 	0    1    1    0   
 $EndComp
 Wire Wire Line
@@ -57,10 +57,10 @@ orange_5v_unreg
 Text Label 3880 1900 0    50   ~ 0
 orange&white_GND
 $Comp
-L LIBRARY1:XL53L0X_POLOLU A?
+L LIBRARY1:XL53L0X_POLOLU A1
 U 1 1 5E3E38FE
 P 2320 1850
-F 0 "A?" H 2253 1975 50  0000 C CNN
+F 0 "A1" H 2253 1975 50  0000 C CNN
 F 1 "XL53L0X_POLOLU" H 2253 1884 50  0000 C CNN
 F 2 "" H 2320 1850 50  0001 C CNN
 F 3 "" H 2320 1850 50  0001 C CNN
@@ -97,8 +97,6 @@ Text Label 3990 2300 0    50   ~ 0
 blue&white_GND
 Text Label 3930 2500 0    50   ~ 0
 brown&white_GND
-Wire Wire Line
-	2730 3080 2500 3080
 $Comp
 L power:GND #PWR?
 U 1 1 5E3F2EF4
@@ -200,8 +198,18 @@ Text Label 8270 7630 0    55   ~ 0
 2-7-2020
 Wire Wire Line
 	2000 3080 1770 3080
-Text Label 1870 3140 0    31   ~ 0
+Text Label 2270 3160 0    31   ~ 0
 blue_wire_neg
-Text Label 2410 3140 0    31   ~ 0
+Text Label 2780 3160 0    31   ~ 0
 red_wire_pos
+Wire Wire Line
+	3030 3080 2890 3080
+Wire Wire Line
+	2390 3080 2300 3080
+Text Label 10640 7630 0    55   ~ 0
+1
+Text Label 4520 7750 0    55   ~ 0
+Rev._1_2-8-2020
+Text Label 5360 7750 0    55   ~ 0
+changed_resistor_location_&_size
 $EndSCHEMATC
