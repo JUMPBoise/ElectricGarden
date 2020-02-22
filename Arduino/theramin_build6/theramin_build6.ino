@@ -21,8 +21,10 @@
 
 // #include <LibPrintf.h> // always compile serial and printf
 
+#define ENABLE_RADIO
+#define ENABLE_DEBUG_PRINT
 #define ENABLE_LOOP_PRINT // comment out to drop printing in loop{...}
-#define ENABLE_STOPWATCH // comment out unless you want to to measure elapsed time between loops
+//#define ENABLE_STOPWATCH // comment out unless you want to to measure elapsed time between loops
 
 #ifdef ENABLE_STOPWATCH
   static unsigned long time1;
@@ -32,6 +34,12 @@
 // from Single_Buzzer.ino 
 #include <Wire.h> // not in ...build3 because it's clearly in Adafruit_VL53L0X.h
 #include <VL53L0X.h> // this is the header for the Pololu library for vl53l0x
+#include <RF24.h>
+
+#ifdef ENABLE_DEBUG_PRINT
+#include "printf.h"
+#endif
+
 #define SPEAKER  6      // use pin D6 on Nano
 
 // from spi_demo_nano.ino and is used to enable the digital potentiomenter
@@ -50,22 +58,106 @@
 #define SHT_SENSOR2 3  // D3 is the Nano pin conected to XSHUT for sensor2
 #define SHT_SENSOR3 4  // D4 is the Nano pin conected to XSHUT for sensor3
 
-// ************************************ GLOBAL VARIABLES **************************
-uint8_t Volume; 
-uint16_t Pitch;
-uint16_t dist1, dist2, dist3; 
+static constexpr uint8_t widgetId = 30;
+static constexpr uint32_t activeTxIntervalMs = 50L;
+static constexpr uint32_t inactiveTxIntervalMs = 500L;  // should be a multiple of activeTxIntervalMs
 
+
+// ---------- radio configuration ----------
+
+// Nwdgt, where N indicates the payload type (0: stress test; 1: position
+// and velocity; 2: measurement vector; 3,4: undefined; 5: custom)
+#define TX_PIPE_ADDRESS "2wdgt"
+
+// Set WANT_ACK to false, TX_RETRY_DELAY_MULTIPLIER to 0, and TX_MAX_RETRIES
+// to 0 for fire-and-forget.  To enable retries and delivery failure detection,
+// set WANT_ACK to true.  The delay between retries is 250 us multiplied by
+// TX_RETRY_DELAY_MULTIPLIER.  To help prevent repeated collisions, use 1, a
+// prime number (2, 3, 5, 7, 11, 13), or 15 (the maximum) for TX_MAX_RETRIES.
+#define WANT_ACK false
+#define TX_RETRY_DELAY_MULTIPLIER 0
+#define TX_MAX_RETRIES 0
+
+// Probably no need to ever set auto acknowledgement to false because the sender
+// can control whether or not acks are sent by using the NO_ACK bit.
+#define ACK_WIDGET_PACKETS true
+
+// Possible data rates are RF24_250KBPS, RF24_1MBPS, or RF24_2MBPS.  (2 Mbps
+// works with genuine Nordic Semiconductor chips only, not the counterfeits.)
+#define DATA_RATE RF24_1MBPS
+
+// Valid CRC length values are RF24_CRC_8, RF24_CRC_16, and RF24_CRC_DISABLED
+#define CRC_LENGTH RF24_CRC_16
+
+// nRF24 frequency range:  2400 to 2525 MHz (channels 0 to 125)
+// ISM: 2400-2500;  ham: 2390-2450
+// WiFi ch. centers: 1:2412, 2:2417, 3:2422, 4:2427, 5:2432, 6:2437, 7:2442,
+//                   8:2447, 9:2452, 10:2457, 11:2462, 12:2467, 13:2472, 14:2484
+#define RF_CHANNEL 80   // Electric Garden Theremin is on ch. 80, Illumicone is on ch. 97
+
+// RF24_PA_MIN = -18 dBm, RF24_PA_LOW = -12 dBm, RF24_PA_HIGH = -6 dBm, RF24_PA_MAX = 0 dBm
+#define RF_POWER_LEVEL RF24_PA_MAX
+
+
+/**********************************************************
+ * Widget Packet Header and Payload Structure Definitions *
+ **********************************************************/
+
+union WidgetHeader {
+  struct {
+    uint8_t id       : 5;
+    uint8_t channel  : 2;
+    bool    isActive : 1;
+  };
+  uint8_t raw;
+};
+
+// pipe 0
+struct StressTestPayload {
+  WidgetHeader widgetHeader;
+  uint32_t     payloadNum;
+  uint32_t     numTxFailures;
+};
+
+// pipe 1
+struct PositionVelocityPayload {
+  WidgetHeader widgetHeader;
+  int16_t      position;
+  int16_t      velocity;
+};
+
+// pipe 2
+struct MeasurementVectorPayload {
+  WidgetHeader widgetHeader;
+  int16_t      measurements[15];
+};
+
+// pipe 5
+struct CustomPayload {
+  WidgetHeader widgetHeader;
+  uint8_t      buf[31];
+};
+
+
+// ************************************ GLOBAL VARIABLES **************************
+
+RF24 radio(9, 10);    // CE on pin 9, CSN on pin 10, also uses SPI bus (SCK on 13, MISO on 12, MOSI on 11)
+
+static MeasurementVectorPayload payload;
+
+static bool isActive;
+static bool wasActive;
+
+// TODO:  Need to select the pattern somehow.
+static uint8_t patternNum = 1;
+
+uint16_t dist1, dist2, dist3; // distN is global
+bool deadstickTimeout = false;
 uint8_t reallyBack = 0;
-unsigned long millis(void); // a function prototype
-// ************************************ GLOBAL VARIABLES **************************
 
-
-
-
- VL53L0X sensor1; // constructor for Pololu's sensor control objects
- VL53L0X sensor2; 
- VL53L0X sensor3; 
-
+VL53L0X sensor1; // constructor for Pololu's sensor control objects
+VL53L0X sensor2; 
+VL53L0X sensor3; 
 
 /* 
     in  void setIdAndInit() 
@@ -83,6 +175,8 @@ unsigned long millis(void); // a function prototype
        using void VL53L0X::startContinuous();
 	  
  */
+
+
 void setIdAndInit() {
  
     // all reset
@@ -106,6 +200,10 @@ void setIdAndInit() {
   // setting address for SENSOR1
   sensor1.setAddress(SENSOR1_ADDRESS);
   delay(10);
+// Probably no need to ever set auto acknowledgement to false because the sender
+// can control whether or not acks are sent by using the NO_ACK bit.
+#define ACK_WIDGET_PACKETS true
+
 
   //  activate SENSOR2
   digitalWrite(SHT_SENSOR2, HIGH);
@@ -266,8 +364,9 @@ uint16_t bendPitch(uint16_t pitch , uint16_t dist){
 
 
 void setPitch(uint16_t freq) {
-       tone(SPEAKER, freq );// tone(pin,freq) sustains last freq unless notone() is called
+       tone(SPEAKER, freq );// tone(pin,freq) sustains last freq unless noTone() is called
 }
+
 
 void commandPot(int SS, int reg, int level) {
   // from spi_demo_nano.ino
@@ -337,94 +436,157 @@ void setVolumeLevel(uint8_t volumeLevel) {
       commandPot(SS1 ,REG1, volumeLevel); // sets wiper on pot pins P1W
 }
 
+
+void broadcastMeasurements()
+{
+  constexpr uint8_t numDistanceMeasmts = 3;
+
+  payload.measurements[0] = patternNum;
+  payload.measurements[1] = dist1 >= 0 && dist1 <= 1023 ? dist1 : 1023;
+  payload.measurements[2] = dist2 >= 0 && dist2 <= 1023 ? dist2 : 1023;
+  payload.measurements[3] = dist3 >= 0 && dist3 <= 1023 ? dist3 : 1023;
+
+  payload.widgetHeader.isActive = isActive;
+
+  if (!radio.write(&payload, sizeof(WidgetHeader) + sizeof(int16_t) * (numDistanceMeasmts + 1), !WANT_ACK)) {
+#ifdef ENABLE_DEBUG_PRINT
+    Serial.println(F("radio.write failed."));
+#endif
+  }
+  else {
+#ifdef ENABLE_DEBUG_PRINT
+    Serial.println(F("radio.write succeeded."));
+#endif
+  }
+}
+
+
+void configureRadio(
+  RF24&             radio,
+  const char*       writePipeAddress,
+  bool              wantAcks,
+  uint8_t           txRetryDelayMultiplier,
+  uint8_t           txMaxRetries,
+  rf24_crclength_e  crcLength,
+  rf24_pa_dbm_e     rfPowerLevel,
+  rf24_datarate_e   dataRate,
+  uint8_t           channel)
+{
+  radio.begin();
+
+  radio.setPALevel(rfPowerLevel);
+  radio.setRetries(txRetryDelayMultiplier, txMaxRetries);
+  radio.setDataRate(dataRate);
+  radio.setChannel(channel);
+  radio.enableDynamicAck();         // allow sending payloads with or without ack request
+  radio.enableDynamicPayloads();
+  radio.setCRCLength(crcLength);
+
+  radio.openWritingPipe((const uint8_t*) writePipeAddress);
+
+#ifdef ENABLE_DEBUG_PRINT
+  radio.printDetails();
+#endif
+
+  // Widgets only transmit data.
+  radio.stopListening();
+}
+
+
 void setup() {
 
 #ifdef ENABLE_STOPWATCH
     time1 = millis();
 #endif
 
-// printf_init(Serial);
-Serial.begin(115200);
-delay(500);            
-                       // consider using: while (! Serial) { delay(1); }
-                       // but you don't want sketch to fail if no serial interface!
+//huh?  printf_init(Serial);
+  Serial.begin(115200);
+#ifdef ENABLE_DEBUG_PRINT
+  printf_begin();
+#endif
 
+  delay(500);            
+  // consider using: while (! Serial) { delay(1); }
+  // but you don't want sketch to fail if no serial interface!
 
   // from spi_demo_nano.ino
 
+  pinMode(SHT_SENSOR1,OUTPUT);
+  pinMode(SHT_SENSOR2,OUTPUT);
+  pinMode(SHT_SENSOR3,OUTPUT);
+
   // setup slave select pins for output
   pinMode(SS1, OUTPUT);
-
-  // per instructions from arduino.cc/en/reference/SPI 
-  // set the Nano's SS pin, 11, to OUTPUT to make it 
-  // unuasable as a chip select for whole Nano board as a SPI slave
-  // also, we use pin D11 for MOSI, which is compatable with OUTPUT
-  pinMode(11,OUTPUT);
+  // Deassert chip select for now so that we can talk to the radio module.
+  digitalWrite(SS1, HIGH);
 
 //  initialize SPI 
-    SPI.begin(); // comment this out if your radio library initializes SPI
+//  SPI.begin(); // comment this out if your radio library initializes SPI
 
-
-pinMode(SHT_SENSOR1,OUTPUT);
-pinMode(SHT_SENSOR2,OUTPUT);
-pinMode(SHT_SENSOR3,OUTPUT);
+  // It appears that RF24 will set up the SPI interface for us.
+  configureRadio(radio, TX_PIPE_ADDRESS, WANT_ACK, TX_RETRY_DELAY_MULTIPLIER,
+                 TX_MAX_RETRIES, CRC_LENGTH, RF_POWER_LEVEL, DATA_RATE,
+                 RF_CHANNEL);
 
   Wire.begin();
 
   setIdAndInit();
 
+  payload.widgetHeader.id = widgetId;
+  payload.widgetHeader.channel = 0;
 }
 
 
-
-void loop() {
+void loop()
+{
 
 #define DEAD_RANGE 1200ul
 #define DEADSTICK_TIMEOUT_PERIOD 5000ul
 
-static unsigned long timeLastUsed;
+  static unsigned long timeLastUsed;
+  static int32_t lastTxMs;
+
+  uint8_t Volume;
+  uint16_t Pitch;
+
+  uint32_t now = millis();
 
   read_three_sensors();
 
-#ifdef ENABLE_LOOP_PRINT
-  Serial.print("dist1: ");
-  Serial.print( dist1);
-  Serial.print("   dist2: ");
-  Serial.print( dist2); 
-  Serial.print("   dist3: ");
-  Serial.print( dist3);
-#endif
+//  Serial.print("dist1: ");
+//  Serial.print( dist1);
+//  Serial.print("   dist2: ");
+//  Serial.print( dist2); 
+//  Serial.print("   dist3: ");
+//  Serial.print( dist3);
+  
+  // here we'll call the musical functions
+  // at this time there are only two output parameters, Pitch and Volume, which will be
+  // global variables. 
+  // if no one uses the sensors for DEADSTICK_TIMEOUT_PERIOD milliseconds, then we'll stop all sound
+  // pitch will be adjustable over a wider range in software
+  // sensor1 will be pitch, sensor2 will be volume and sensor3 will be special effects
+  //       first (maybe only?) special effect: wammy bar, which bends pitch up and 
+  //       returns to un-modified pitch when not used.
 
-
-// here we'll call the musical functions
-// at this time there are only two output parameters, Pitch and Volume, which will be
-// global variables. 
-// if no one uses the sensors for DEADSTICK_TIMEOUT_PERIOD milliseconds, then we'll stop all sound
-// pitch will be adjustable over a wider range in software
-// sensor1 will be pitch, sensor2 will be volume and sensor3 will be special effects
-//       first (maybe only?) special effect: wammy bar, which bends pitch up and 
-//       returns to un-modified pitch when not used.
-
-
-
-if( (dist1 < DEAD_RANGE || dist2 < DEAD_RANGE || dist3 < DEAD_RANGE) ){
-      timeLastUsed = millis();
-          }
-unsigned long timeNow = millis();
-
+  if (!(dist1 > DEAD_RANGE && dist2 > DEAD_RANGE && dist3 > DEAD_RANGE)) {
+    timeLastUsed = now;
+  }
 
 #ifdef ENABLE_LOOP_PRINT
 Serial.print(" timeLastUsed: ");
 Serial.print( timeLastUsed );
-Serial.print(" timeNow: ");
-Serial.print( timeNow );
+Serial.print(" now: ");
+Serial.print( now );
 Serial.print(" delta: ");
-Serial.print( timeNow-timeLastUsed ); 
+Serial.print( now - timeLastUsed ); 
 #endif
 
-if( (timeNow-timeLastUsed)  > DEADSTICK_TIMEOUT_PERIOD ) { 
+if( (now -timeLastUsed)  > DEADSTICK_TIMEOUT_PERIOD ) { 
+
      // declare a DEADSTICK_TIMEOUT
     
+     deadstickTimeout = true;
 
      noTone(SPEAKER);
      
@@ -435,6 +597,9 @@ if( (timeNow-timeLastUsed)  > DEADSTICK_TIMEOUT_PERIOD ) {
 
     
     } else { 
+
+     deadstickTimeout = false;
+
           if (reallyBack >= 5 ) {
             
                Pitch = getPitch(dist1);
@@ -454,22 +619,35 @@ if( (timeNow-timeLastUsed)  > DEADSTICK_TIMEOUT_PERIOD ) {
            reallyBack++;
            }
   }
-// #ifdef ENABLE_STOPWATCH, then time1 was initiaized to millis() in setup, 
-// and k, a static variable,  is initalized to zero on creation
+
+  // #ifdef ENABLE_STOPWATCH, then time1 was initiaized to millis() in setup, 
+  // and k, a static variable,  is initalized to zero on creation
+
 #ifdef ENABLE_STOPWATCH
   k++;
-  if (k >= 100){
-    
- unsigned long time2 = millis();
- Serial.print(" elapsed time for ");
- Serial.print( k );
- Serial.print(" loops is ");
- Serial.print( (time2-time1));
- Serial.println(" ms");
-     time1 = time2;
-     k=0;
+  if (k >= 100) {
+    unsigned long time2 = millis();
+    Serial.print(" elapsed time for ");
+    Serial.print(k);
+    Serial.print(" loops is ");
+    Serial.print((time2-time1));
+    Serial.println(" ms");
+    time1 = time2;
+    k=0;
   }
-  
 #endif
+
+  // The theremin is active when a deadstick timeout has not occurred.
+  isActive = !deadstickTimeout;
+
+  // Periodically broadcast the measurements to the pixel minions.
+  if (now - lastTxMs >= activeTxIntervalMs) {
+    // When the theremin isn't active, we don't need to broadcast measurements as often.
+    if (isActive || wasActive || now - lastTxMs >= inactiveTxIntervalMs) {
+      lastTxMs = now;
+      broadcastMeasurements();
+      wasActive = isActive;
+    }
+  }
 
 }
