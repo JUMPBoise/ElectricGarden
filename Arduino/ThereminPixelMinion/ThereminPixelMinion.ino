@@ -7,7 +7,7 @@
  * January 2020                                                             *
  *                                                                          *
  * based on RF_mesh_TREES_receiver_side (Feb. 2019 version) by Jesse Cordtz *
- * and GardenSpinner (Dec. 2019 version) by Ross Butler                     *
+ * and GardenSpinner (Dec. 2019 versiton) by Ross Butler                     *
  *                                                                          *
  ****************************************************************************/
 
@@ -203,7 +203,8 @@ constexpr uint8_t patternIds[] = {
   SectionLocator::id,
   Stripes::id,
   StripTest::id,
-  YellowGiraffe::id};
+  YellowGiraffe::id,
+  Tetris::id};
 constexpr uint8_t numPatternIds = sizeof(patternIds) / sizeof(uint8_t);
 
 #if defined(TARGET_IS_GIRAFFE_BODY) || defined(TARGET_IS_LARGE_GIRAFFE_LEGS) || defined(TARGET_IS_SMALL_GIRAFFE_LEGS)
@@ -216,6 +217,7 @@ constexpr uint8_t numPatternIds = sizeof(patternIds) / sizeof(uint8_t);
     {OutsideIn::id     , YellowGiraffe::id},
     {MiddleOut::id     , YellowGiraffe::id},
     {Rainbow::id       , YellowGiraffe::id},
+    {Tetris::id        , YellowGiraffe::id},
     {SectionLocator::id, SectionLocator::id},
     {StripTest::id     , StripTest::id}
   };
@@ -223,7 +225,7 @@ constexpr uint8_t numPatternIds = sizeof(patternIds) / sizeof(uint8_t);
 
 // The defaut pattern is the active pattern upon startup and remains the active
 // pattern until measurements with a different pattern id are received or simulated.
-constexpr uint8_t defaultPatternId = PlasmaBall::id;
+constexpr uint8_t defaultPatternId = Rainbow::id;
 
 
 
