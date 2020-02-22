@@ -3,7 +3,8 @@
 //      1. read sensors only when they test ready, like ...build5
 //      2. improve ergonomic operation of sensors on pitch, volume and other
 //          a. if all sensor unused (ie over a max DEAD_RANGE) for DEADSTICK_TIMEOUT_PERIOD ms,
-//             all sound ceases
+//             all sound ceases. MODIFY SO THAT SEVERAL CONSECUTIVE READINGS LESS THAN DEADRANGE ARE 
+//             NEEDED TO LEAVE DEADSTICK_TIMEOUT, to avoid leaving for a single spurlious reading
 //          b. if volume sensor or pitch sensor goes out of range, volume level or pitch continues unchanged,
 //             unless stopped for deadstick 
 //          c. if pitch is bent up frequency with bend sensor, it returns to unbent condition when out of range, 
@@ -49,9 +50,16 @@
 #define SHT_SENSOR2 3  // D3 is the Nano pin conected to XSHUT for sensor2
 #define SHT_SENSOR3 4  // D4 is the Nano pin conected to XSHUT for sensor3
 
-uint16_t dist1, dist2, dist3; // distN is global
-bool deadstickTimeout = false;
+// ************************************ GLOBAL VARIABLES **************************
+uint8_t Volume; 
+uint16_t Pitch;
+uint16_t dist1, dist2, dist3; 
+
+uint8_t reallyBack = 0;
 unsigned long millis(void); // a function prototype
+// ************************************ GLOBAL VARIABLES **************************
+
+
 
 
  VL53L0X sensor1; // constructor for Pololu's sensor control objects
@@ -156,7 +164,7 @@ void read_three_sensors() {
 
 uint16_t getPitch(uint16_t dist){
 
-// we will map an acceptable distance range from sensor loDist to hiDist
+// we will LINEARLY map an acceptable distance range from sensor loDist to hiDist
 // to the frequency range that we desire loPitch to hiPitch, linearly
 // there will be deadbands, from hiDist to MAXDISTANCE where we use hiPitch,
 // and from loDist to MINDISTANCE where we use loPitch
@@ -202,6 +210,59 @@ uint16_t getPitch(uint16_t dist){
       last_frequency = frequency;
       return frequency;     
   }
+
+//************************************BENDPITCH*************************************
+uint16_t bendPitch(uint16_t pitch , uint16_t dist){
+
+// we will LINEARLY map an acceptable distance range from sensor loDist to hiDist
+// to the pitch multiplier  bendX
+
+// if the distance goes past MAXDISTANCE, bendPitch just drops out, ie, returns pitch unchanged
+
+
+   #define MAXDISTANCE  1100ul
+   #define loDIST 50ul
+   #define hiDIST 800ul
+   #define loBEND 1ul
+   #define hiBEND 5ul
+   #define limitPITCH 6000ul
+   
+ //  static uint16_t last_frequency; // static initializes to zero by default
+ //  uint16_t frequency;
+
+   if(dist >= MAXDISTANCE ){           // if dist out of normal range, return pitch unchanged
+          return pitch;
+          } 
+          
+   uint16_t bendX = loBEND; 
+   if (dist >= hiDIST) {
+          bendX=hiBEND;
+          }else {
+          if(dist > loDIST) { //only dist > loDIST and dist < hiDist reach here
+            
+              //map (loDIST to hiDIST) into (loBEND to hiBEND)
+              // Careful, intermediate product may be too big for unit16_t and 
+              // would be automatically promoted by the compiler to uint32_t. 
+              // Assure that all of your defined literals are a sufficiently large
+              // data type, for example unsigned long: 700ul
+              // Also, assure that for all values of dist that can reach this
+              // statement, the result in frequency are in the range from
+              // loPITCH to hiPITCH, and that no intermediate arithemetic 
+              // results are less than zero or higher than uint32_t can hold.
+              
+              bendX =(uint16_t) (loBEND +  ((dist - loDIST)*(hiBEND-loBEND))/(hiDIST-loDIST)  ) ;
+
+              }
+         }
+      pitch = bendX*pitch;
+      if (pitch > limitPITCH){
+          pitch = limitPITCH;
+          }
+      return pitch;     
+  }
+
+//************************************BENDPITCH*************************************
+
 
 
 void setPitch(uint16_t freq) {
@@ -261,7 +322,7 @@ if (dist >= TOPRANGE ){
           // statement, the result in volumeLevel are in the range from
           // ( LOSTEP+1 ) to ( HISTEP-1 ), and that no intermediate arithemetic 
           // results are less than zero or higher than uint32_t can hold.
-          volumeL = (uint8_t)((dist-BOTTOMRANGE)*HISTEP/(TOPRANGE-BOTTOMRANGE));
+          volumeL = (uint8_t)((dist-BOTTOMRANGE)*(HISTEP-LOSTEP)/(TOPRANGE-BOTTOMRANGE));
         }
     }        
 
@@ -314,6 +375,8 @@ pinMode(SHT_SENSOR3,OUTPUT);
 
 }
 
+
+
 void loop() {
 
 #define DEAD_RANGE 1200ul
@@ -321,22 +384,17 @@ void loop() {
 
 static unsigned long timeLastUsed;
 
-uint8_t Volume;
-uint16_t Pitch;
-
-
-
   read_three_sensors();
 
-
+#ifdef ENABLE_LOOP_PRINT
   Serial.print("dist1: ");
   Serial.print( dist1);
   Serial.print("   dist2: ");
   Serial.print( dist2); 
   Serial.print("   dist3: ");
   Serial.print( dist3);
-  
-;
+#endif
+
 
 // here we'll call the musical functions
 // at this time there are only two output parameters, Pitch and Volume, which will be
@@ -349,53 +407,53 @@ uint16_t Pitch;
 
 
 
-if( !(dist1 > DEAD_RANGE && dist2 > DEAD_RANGE && dist3 > DEAD_RANGE) ){
+if( (dist1 < DEAD_RANGE || dist2 < DEAD_RANGE || dist3 < DEAD_RANGE) ){
       timeLastUsed = millis();
           }
 unsigned long timeNow = millis();
 
 
-Serial.println();
+#ifdef ENABLE_LOOP_PRINT
 Serial.print(" timeLastUsed: ");
 Serial.print( timeLastUsed );
 Serial.print(" timeNow: ");
 Serial.print( timeNow );
 Serial.print(" delta: ");
-Serial.println( timeNow-timeLastUsed ); 
-
+Serial.print( timeNow-timeLastUsed ); 
+#endif
 
 if( (timeNow-timeLastUsed)  > DEADSTICK_TIMEOUT_PERIOD ) { 
      // declare a DEADSTICK_TIMEOUT
     
-//     Volume = 0;
-//     setVolumeLevel(Volume);
-      noTone(SPEAKER);
+
+     noTone(SPEAKER);
+     
+#ifdef ENABLE_LOOP_PRINT     
      Serial.println(" DEADSTICK_TIMEOUT ");
-/*     if(deadstickTimeout == false) {
-       deadstickTimeout = true;
-       // signal all radios that theramin is on DEADSTICK_TIMEOUT
-     } */
+#endif     
+     reallyBack = 0;
+
     
-    } else {
-/*      if (deadstickTimeout == true) {
-            deadstickTimeout = false;
-            // signal all radios that DEADSTICK_TIMEOUT is over
-      } */
+    } else { 
+          if (reallyBack >= 5 ) {
+            
+               Pitch = getPitch(dist1);
+               Pitch = bendPitch(Pitch, dist3);
+               Volume = getVolumeLevel(dist2);
 
-      Pitch = getPitch(dist1);
- //   Pitch = bendPitch(Pitch, dist3);
-      Volume = getVolumeLevel(dist2);
-
-      setPitch(Pitch);
-      setVolumeLevel(Volume);
-
- Serial.print( "   Pitch = ");
- Serial.print( Pitch );
- Serial.print(" Volume = ");
- Serial.println( Volume );
-      
-    }
- 
+               setPitch(Pitch);
+               setVolumeLevel(Volume);
+               
+#ifdef ENABLE_LOOP_PRINT               
+               Serial.print( "   Pitch = ");
+               Serial.print( Pitch );
+               Serial.print(" Volume = ");
+               Serial.println( Volume );
+#endif      
+               }  else {
+           reallyBack++;
+           }
+  }
 // #ifdef ENABLE_STOPWATCH, then time1 was initiaized to millis() in setup, 
 // and k, a static variable,  is initalized to zero on creation
 #ifdef ENABLE_STOPWATCH
@@ -413,4 +471,5 @@ if( (timeNow-timeLastUsed)  > DEADSTICK_TIMEOUT_PERIOD ) {
   }
   
 #endif
+
 }
