@@ -7,7 +7,7 @@
  * January 2020                                                             *
  *                                                                          *
  * based on RF_mesh_TREES_receiver_side (Feb. 2019 version) by Jesse Cordtz *
- * and GardenSpinner (Dec. 2019 version) by Ross Butler                     *
+ * and GardenSpinner (Dec. 2019 versiton) by Ross Butler                     *
  *                                                                          *
  ****************************************************************************/
 

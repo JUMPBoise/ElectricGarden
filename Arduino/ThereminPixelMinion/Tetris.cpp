@@ -42,20 +42,22 @@ void Tetris::fill()
       pixels[blockPosition] = CRGB(0,0,0);
       blockPosition++;
     }
+  } else {
+    blockPosition = 0;
+    totalFilled++;
   }
 
   if ((totalFilled + 1) >= numPixels) {
-    pixelCache = pixels // TODO: figure out the right way to store this for reference during the flicker phase
-    state = STATE_FLICKERING
+    state = STATE_FLICKERING;
   } else {
     uint8_t hue = map(curMeasmts[0], minMeasmtValues[0], maxMeasmtValues[0], 0, 255);
-    uint8_t brightness = uint8_t brightness = map(curMeasmts[1], minMeasmtValues[1], maxMeasmtValues[1], BRIGHTNESS_MIN, BRIGHTNESS_MAX);
+    uint8_t brightness = map(curMeasmts[1], minMeasmtValues[1], maxMeasmtValues[1], BRIGHTNESS_MIN, BRIGHTNESS_MAX);
     CHSV color(hue, 240, brightness);
-    pixels[blockPosition] = color
+    pixels[blockPosition] = color;
   }
 
   uint8_t dropSpeed = map(curMeasmts[2], minMeasmtValues[2], maxMeasmtValues[2], DROP_SPEED_MIN, DROP_SPEED_MAX);
-  nextMove = millis() + dropSpeed;
+  nextMove = millis() + (dropSpeed * 10);
 }
 
 void Tetris::flicker()
@@ -65,14 +67,11 @@ void Tetris::flicker()
     flickers++;
     flickerOnWhite = true;
   } else {
-    // TODO: figure out the right way to bring this back from cache
-    for (int i = 0; i < numPixels; i++) {
-      pixels[i] = pixelCache[i];
-    }
+    fill_solid(pixels, numPixels, CRGB::Black);
     flickerOnWhite = false;
   }
 
-  if (flickers === MAX_FLICKERS) {
+  if (flickers == MAX_FLICKERS) {
     fill_solid(pixels, numPixels, CRGB::Black);
     totalFilled = 0;
     state = STATE_FILLING;

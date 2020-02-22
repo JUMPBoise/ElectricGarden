@@ -24,7 +24,8 @@ void MiddleOut::update(bool widgetIsActive)
   uint8_t fillPercent = map(curMeasmts[2], minMeasmtValues[2], maxMeasmtValues[2], 0, 100);
 
   // Black out
-  fill_solid(pixels, numPixels, CRGB::Black);
+  CRGB fill;
+  fill_solid(pixels, numPixels, fill.setHue(hue + (255/2)));
   
   CHSV hsv;
   hsv.hue = hue;

@@ -42,7 +42,6 @@ class Tetris : public PixelPattern {
 
     uint8_t flickers;         // the current number of flickers that have happened
     bool flickerOnWhite;      // whether or not the flicker is currently showing white
-    CRGB* pixelCache;         // a temporary cache of the pixels to flash when not flickering
 
   private:
     
