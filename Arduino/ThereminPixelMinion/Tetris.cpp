@@ -71,7 +71,7 @@ void Tetris::flicker()
     flickerOnWhite = false;
   }
 
-  if (flickers == MAX_FLICKERS) {
+  if (flickers >= MAX_FLICKERS) {
     fill_solid(pixels, numPixels, CRGB::Black);
     totalFilled = 0;
     state = STATE_FILLING;
