@@ -1,3 +1,5 @@
+// theramin_build7.ino is EXACTLY same as ...build6 at 1:09 pm on 2-27-2020, a backup
+// my laptop is failing and I may lose it altogether while merging ...build6
 // theramin_build6.ino by C.Spindler 2-9-2020
 // ...build6 will:
 //      1. read sensors only when they test ready, like ...build5, ie
