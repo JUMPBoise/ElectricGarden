@@ -17,6 +17,7 @@
 #include "PixelPattern.h"
 #include "PlasmaBall.h"
 #include "Rainbow.h"
+#include "Tetris.h"
 #include "SectionLocator.h"
 #include "Stripes.h"
 #include "StripTest.h"
@@ -28,6 +29,8 @@ static PixelPattern* pixelPatternFactory(uint8_t patternId)
   switch(patternId) {
     case MiddleOut::id:
       return new MiddleOut;
+    case Tetris::id:
+      return new Tetris;
     case OutsideIn::id:
       return new OutsideIn;
     case PlasmaBall::id:

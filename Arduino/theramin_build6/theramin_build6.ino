@@ -109,7 +109,7 @@ static constexpr uint32_t inactiveTxIntervalMs = 500L;  // should be a multiple 
 #define RF_CHANNEL 76   // Electric Garden Theremin is on ch. 80, Illumicone is on ch. 97
 
 // RF24_PA_MIN = -18 dBm, RF24_PA_LOW = -12 dBm, RF24_PA_HIGH = -6 dBm, RF24_PA_MAX = 0 dBm
-#define RF_POWER_LEVEL RF24_PA_MAX
+#define RF_POWER_LEVEL RF24_PA_LOW
 
 
 /**********************************************************
@@ -226,9 +226,7 @@ void setIdAndInit() {
   // setting address for SENSOR1
   sensor1.setAddress(SENSOR1_ADDRESS);
   delay(10);
-// Probably no need to ever set auto acknowledgement to false because the sender
-// can control whether or not acks are sent by using the NO_ACK bit.
-#define ACK_WIDGET_PACKETS true
+
 
 
   //  activate SENSOR2
