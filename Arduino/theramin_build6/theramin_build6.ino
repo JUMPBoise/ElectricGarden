@@ -31,9 +31,9 @@
 
 // #include <LibPrintf.h> // always compile serial and printf
 
-#define ENABLE_RADIO
-#define ENABLE_DEBUG_PRINT
-#define ENABLE_LOOP_PRINT // comment out to drop printing in loop{...}
+//#define ENABLE_RADIO
+//#define ENABLE_DEBUG_PRINT
+#define ENABLE_D // comment out to drop tagged printing 
 #define ENABLE_STOPWATCH // comment out unless you want to to measure elapsed time between loops
 
 #ifdef ENABLE_STOPWATCH
@@ -46,8 +46,14 @@
 #include <VL53L0X.h> // this is the header for the Pololu library for vl53l0x
 #include <RF24.h>
 
-#ifdef ENABLE_DEBUG_PRINT
+#ifdef ENABLE_DEBUG_PRINT  
 #include "printf.h"
+#endif
+
+#ifdef ENABLE_D 
+#ifndef ENABLE_DEBUG_PRINT
+#include "printf.h"
+#endif
 #endif
 
 #define SPEAKER  6      // use pin D6 on Nano
@@ -277,8 +283,12 @@ void read_three_sensors() {
 // normalized by mapping from the ergomomic range to the range from 0 to 1023. We'll read them 
 // with local variables measure1, measure2 and measure3. 
 
-uint16_t measure1,measure2,measure3; 
+static uint16_t measure1,measure2,measure3; // static initializes to zero
 static unsigned long timeLastUsed;
+
+#ifdef ENABLE_D  
+printf("line 283 measure1: %6d measure2: %6d measure3: %6d\n", measure1,measure2,measure3); 
+#endif
 
 // when values read at sensor, the condition below is the same test that is used by
 // uint16_t VL53L0X::readRangeContinuousMillimeters(void) to determine whether to
@@ -295,11 +305,19 @@ static unsigned long timeLastUsed;
   if((sensor3.readReg(VL53L0X::RESULT_INTERRUPT_STATUS) & 0x07) != 0) {
         measure3 = sensor3.readRangeContinuousMillimeters();
         }              
+#ifdef ENABLE_D 
+printf("line 309 measure1: %6d measure2: %6d measure3: %6d\n", measure1,measure2,measure3); 
+#endif
 
   uint16_t now = millis();
   if ( measure1 < DEAD_RANGE || measure2 < DEAD_RANGE || measure3 < DEAD_RANGE ) {
       timeLastUsed = now;
       } 
+
+#ifdef ENABLE_D 
+printf(" line 318 timeLastUsed: %6d now: %6d delta: %6d \n", timeLastUsed, now, now - timeLastUsed); 
+#endif
+
       
   if( (now - timeLastUsed)  > DEADSTICK_TIMEOUT_PERIOD ) {  
       // DECLARE DEADSTICK_TIMEOUT
@@ -311,41 +329,34 @@ static unsigned long timeLastUsed;
       } else { 
         if (reallyBack >= 5 ) {
           deadstickTimeout = false;
-           
-          if (measure1 > LoErgoRange || measure1 < HiErgoRange ) {
+
+#ifdef ENABLE_D 
+printf("line 329 dist1: %6d dist2: %6d dist3: %6d\n", dist1,dist2,dist3); 
+#endif
+            
+          if (measure1 > LoErgoRange && measure1 < HiErgoRange ) {
              // If measureN is out of ergonomic range, distN remains unchanged            
              dist1 = map(measure1, LoErgoRange, HiErgoRange, LoNormalRange, HiNormalRange);
             }
          
-         if (measure2 > LoErgoRange || measure2 < HiErgoRange ) {
+         if (measure2 > LoErgoRange && measure2 < HiErgoRange ) {
             // If measureN is out of ergonomic range, distN remains unchanged            
              dist2 = map(measure2, LoErgoRange, HiErgoRange, LoNormalRange, HiNormalRange);
              }
          
-          if (measure3 > LoErgoRange || measure3 < HiErgoRange ) {
+          if (measure3 > LoErgoRange && measure3 < HiErgoRange ) {
              // If measureN is out of ergonomic range, distN remains unchanged            
              dist3 = map(measure3, LoErgoRange, HiErgoRange, LoNormalRange, HiNormalRange);
             }
-   
+#ifdef ENABLE_D 
+printf("line 352 dist1: %6d dist2: %6d dist3: %6d", dist1,dist2,dist3);   
+#endif
            }  else {
            reallyBack++;
         }
      }
 
-#ifdef ENABLE_LOOP_PRINT
-Serial.print("dist1: ");
-Serial.print(dist1);
-Serial.print(" dist2: ");
-Serial.print(dist2);
-Serial.print(" dist3: ");
-Serial.print(dist3);
-Serial.print(" timeLastUsed: ");
-Serial.print( timeLastUsed );
-Serial.print(" now: ");
-Serial.print( now );
-Serial.print(" delta: ");
-Serial.print( now - timeLastUsed ); 
-#endif
+
 }
 
 uint16_t getPitch(uint16_t dist){
@@ -359,16 +370,39 @@ static uint16_t frequency;
    const uint16_t LoPitch = 30;    //  lowest frequency toned is 30 hz
    const uint16_t HiPitch = 6000;  //  highest frequency toned is 6000 hz   
 
+#ifdef ENABLE_D 
+printf("\nline 371 lastDist: %6d dist: %6d frequency: %6d\n",lastDist, dist, frequency); 
+#endif
    if(lastDist != dist ) {
        frequency = map(dist,LoNormalRange,HiNormalRange,LoPitch,HiPitch);
+       lastDist = dist;
        }
-       
+#ifdef ENABLE_D 
+printf("line 376 lastDist: %6d dist: %6d frequency: %6d\n",lastDist, dist, frequency); 
+#endif      
    return frequency;     
   }
 
 //************************************BENDPITCH*************************************
 uint16_t bendPitch(uint16_t pitch , uint16_t dist){
 
+//  we will map dist, which is normalized from 0 to 1023, into a reversed
+//  higher pitch range.
+
+// if the user moves hand away from sensor3 , we want bend to stop,
+// however, there is no easy way to do that, because all the controls for "out of range"
+// are in read_three_sensors() and used for deadstick_timeout
+
+#ifdef  ENABLE_D
+printf("line 393 pitch: %6d dist: %6d \n", pitch, dist);
+#endif
+pitch = map(dist, HiNormalRange, LoNormalRange, pitch+500, pitch+1000);
+#ifdef  ENABLE_D
+printf("line 397 pitch: %6d dist: %6d \n", pitch, dist);
+#endif
+
+
+/*
 // we will map dist, which is normalized from 0 to 1023, into a pitch multiplier, bendX, 
 // which will range from 1000 to bendMax.  For now bendMax = 3000. 
 // the pitch we return will be newPitch = (uint16_t)(pitch*bendX/1000) 
@@ -394,7 +428,7 @@ uint16_t bendX = 1000;
       pitch = (uint16_t)( pitch * bendX/1000);
    }
       
-       
+  */     
    return pitch;  
           
 
@@ -528,10 +562,16 @@ void setup() {
     time1 = millis();
 #endif
 
-//huh?  printf_init(Serial); 
+
   Serial.begin(115200);
 #ifdef ENABLE_DEBUG_PRINT
   printf_begin();
+#endif
+
+#ifdef ENABLE_D 
+#ifndef ENABLE_DEBUG_PRINT
+  printf_begin();
+#endif
 #endif
 
   delay(500);            
@@ -581,25 +621,24 @@ if( deadstickTimeout ) {
     noTone(SPEAKER);
     noToneFlag = true;
      
-#ifdef ENABLE_LOOP_PRINT     
-    Serial.println(" DEADSTICK_TIMEOUT ");
+#ifdef ENABLE_D 
+printf(" DEADSTICK_TIMEOUT \n"); 
 #endif     
   
     } else { 
            
        Pitch = getPitch(dist1);
-//       Pitch = bendPitch(Pitch, dist3);
+       Pitch = bendPitch(Pitch, dist3);
        Volume = getVolumeLevel(dist2);
 
        setPitch(Pitch);
        setVolumeLevel(Volume);
                
-#ifdef ENABLE_LOOP_PRINT               
-               Serial.print( "   Pitch = ");
-               Serial.print( Pitch );
-               Serial.print(" Volume = ");
-               Serial.println( Volume );
-#endif      
+#ifdef ENABLE_D 
+printf("  Pitch = %6d  Volume = %6d\n", Pitch,Volume); 
+#endif               
+
+     
            
   }
 
