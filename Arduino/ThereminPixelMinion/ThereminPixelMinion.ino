@@ -56,10 +56,11 @@
  ******************************/
 
 // Enable only one of these.
-#define TARGET_IS_OLD_TREE
-//#define TARGET_IS_NEW_TREE
+//#define TARGET_IS_OLD_TREE
+#define TARGET_IS_NEW_TREE
 //#define TARGET_IS_CLOUD
-//#define TARGET_IS_GIRAFFE_BODY
+//#define TARGET_IS_LARGE_GIRAFFE_BODY
+//#define TARGET_IS_SMALL_GIRAFFE_BODY
 //#define TARGET_IS_LARGE_GIRAFFE_LEGS
 //#define TARGET_IS_SMALL_GIRAFFE_LEGS
 //#define TARGET_IS_ROSS_DEVL
@@ -97,11 +98,18 @@
   #define MAX_SECTIONS_PER_STRIP 1
   constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {255} };
   constexpr uint8_t overallBrightness = 255;
-// ---------- giraffe body ----------
-#elif defined(TARGET_IS_GIRAFFE_BODY)
+// ---------- large giraffe body ----------
+#elif defined(TARGET_IS_LARGE_GIRAFFE_BODY)
   #define NUM_STRIPS 1
   #define MAX_SECTIONS_PER_STRIP 1
   constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {250} };
+  constexpr uint8_t overallBrightness = 255;
+  constexpr uint32_t colorCorrection = 0xFFFF66;
+// ---------- small giraffe body ----------
+#elif defined(TARGET_IS_SMALL_GIRAFFE_BODY)
+  #define NUM_STRIPS 1
+  #define MAX_SECTIONS_PER_STRIP 1
+  constexpr uint8_t numSectionPixels[NUM_STRIPS][MAX_SECTIONS_PER_STRIP] = { {248} };
   constexpr uint8_t overallBrightness = 255;
   constexpr uint32_t colorCorrection = 0xFFFF66;
 // ---------- large giraffe legs ----------
@@ -207,6 +215,7 @@ constexpr uint8_t patternIds[] = {
   Tetris::id};
 constexpr uint8_t numPatternIds = sizeof(patternIds) / sizeof(uint8_t);
 
+#ifdef NO_COMPILE_ROSS
 #if defined(TARGET_IS_GIRAFFE_BODY) || defined(TARGET_IS_LARGE_GIRAFFE_LEGS) || defined(TARGET_IS_SMALL_GIRAFFE_LEGS)
   #define USE_PATTERN_XREF
   constexpr uint8_t selectedPatternIdIdx = 0;
@@ -222,6 +231,7 @@ constexpr uint8_t numPatternIds = sizeof(patternIds) / sizeof(uint8_t);
     {StripTest::id     , StripTest::id}
   };
 #endif
+#endif  // #ifdef NO_COMPILE_ROSS
 
 // The defaut pattern is the active pattern upon startup and remains the active
 // pattern until measurements with a different pattern id are received or simulated.
