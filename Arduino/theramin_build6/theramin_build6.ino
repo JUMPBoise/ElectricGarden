@@ -34,7 +34,7 @@
 #define ENABLE_RADIO
 #define ENABLE_DEBUG_PRINT
 #define ENABLE_LOOP_PRINT // comment out to drop printing in loop{...}
-//#define ENABLE_STOPWATCH // comment out unless you want to to measure elapsed time between loops
+#define ENABLE_STOPWATCH // comment out unless you want to to measure elapsed time between loops
 
 #ifdef ENABLE_STOPWATCH
   static unsigned long time1;
@@ -106,10 +106,10 @@ static constexpr uint32_t inactiveTxIntervalMs = 500L;  // should be a multiple 
 
 // temporarily, we set RF_CHANNEL to 76, to keep using the radio hardware, but not interfere 
 // with testing of light patterns, put it back to channel 80 later
-#define RF_CHANNEL 76   // Electric Garden Theremin is on ch. 80, Illumicone is on ch. 97
+#define RF_CHANNEL 80   // Electric Garden Theremin is on ch. 80, Illumicone is on ch. 97
 
 // RF24_PA_MIN = -18 dBm, RF24_PA_LOW = -12 dBm, RF24_PA_HIGH = -6 dBm, RF24_PA_MAX = 0 dBm
-#define RF_POWER_LEVEL RF24_PA_LOW
+#define RF_POWER_LEVEL RF24_PA_MIN
 
 
 /**********************************************************
@@ -180,6 +180,7 @@ constexpr uint16_t  HiNormalRange = 1023; // range, from 0 to 1023
 uint16_t dist1 = DEFAULTDIST1 , dist2 = DEFAULTDIST2 , dist3 = DEFAULTDIST3; // distN is global
 bool deadstickTimeout = false;
 uint8_t reallyBack = 0;
+bool noToneFlag = true;
 
 VL53L0X sensor1; // constructor for Pololu's sensor control objects
 VL53L0X sensor2; 
@@ -264,6 +265,9 @@ void setIdAndInit() {
 }
 
 void read_three_sensors() {  
+
+// only output is dist1,dist2 & dist3,  normalized to 0 to 1023 range,
+// and bool   
   
 // the VL53L0X sensor is nominally 30 to 2000 mm, but practically 30 mm to about
 // 1300 mm is all that is reliable. We will call anything measuring over DEAD_RANGE (or 1200 mm)
@@ -279,7 +283,7 @@ static unsigned long timeLastUsed;
 // when values read at sensor, the condition below is the same test that is used by
 // uint16_t VL53L0X::readRangeContinuousMillimeters(void) to determine whether to
 // actually get the sensor measurement or wait.
-// we only read the sensor if we KNOW we will not wait
+// we only read the sensor if we KNOW we will not wait//
   if((sensor1.readReg(VL53L0X::RESULT_INTERRUPT_STATUS) & 0x07) != 0) {
         measure1 = sensor1.readRangeContinuousMillimeters();
         }
@@ -349,61 +353,52 @@ uint16_t getPitch(uint16_t dist){
 // dist is normalized from 0 to 1023
 // and it is always maintained at last dist if measure at sensor is out of range  
 
+static uint16_t lastDist; //static initializes to 0
+static uint16_t frequency;
+
    const uint16_t LoPitch = 30;    //  lowest frequency toned is 30 hz
    const uint16_t HiPitch = 6000;  //  highest frequency toned is 6000 hz   
-   
-   uint16_t frequency = map(dist,LoNormalRange,HiNormalRange,LoPitch,HiPitch);
+
+   if(lastDist != dist ) {
+       frequency = map(dist,LoNormalRange,HiNormalRange,LoPitch,HiPitch);
+       }
+       
    return frequency;     
   }
 
 //************************************BENDPITCH*************************************
 uint16_t bendPitch(uint16_t pitch , uint16_t dist){
 
-// we will LINEARLY map an acceptable distance range from sensor loDist to hiDist
-// to the pitch multiplier  bendX
+// we will map dist, which is normalized from 0 to 1023, into a pitch multiplier, bendX, 
+// which will range from 1000 to bendMax.  For now bendMax = 3000. 
+// the pitch we return will be newPitch = (uint16_t)(pitch*bendX/1000) 
 
-// if the distance goes past MAXDISTANCE, bendPitch just drops out, ie, returns pitch unchanged
+// range map is reversed, so close to sensor it high bend
 
+// dist is normalized from 0 to 1023
+// and it is always maintained at last dist if measure at sensor is out of range  
 
-   #define MAXDISTANCE  1100ul
-   #define loDIST 50ul
-   #define hiDIST 800ul
-   #define loBEND 1ul
-   #define hiBEND 5ul
-   #define limitPITCH 6000ul
-   
- //  static uint16_t last_frequency; // static initializes to zero by default
- //  uint16_t frequency;
+static uint16_t lastDist; //static initializes to 0
+static uint16_t lastBendX;
+const uint16_t bendMax = 3000;  //  max bend factor is 3000/1000 
+uint16_t bendX = 1000;
 
-   if(dist >= MAXDISTANCE ){           // if dist out of normal range, return pitch unchanged
-          return pitch;
-          } 
+   if(lastDist != dist ) {
+       bendX = map(dist,HiNormalRange, LoNormalRange,1000,bendMax);
+       lastDist = dist;
+       }
+   if (bendX < 1000 || bendX ) {
+         bendX = 1000;  
+      }
+   if (lastBendX != bendX) { 
+      pitch = (uint16_t)( pitch * bendX/1000);
+   }
+      
+       
+   return pitch;  
           
-   uint16_t bendX = loBEND; 
-   if (dist >= hiDIST) {
-          bendX=hiBEND;
-          }else {
-          if(dist > loDIST) { //only dist > loDIST and dist < hiDist reach here
-            
-              //map (loDIST to hiDIST) into (loBEND to hiBEND)
-              // Careful, intermediate product may be too big for unit16_t and 
-              // would be automatically promoted by the compiler to uint32_t. 
-              // Assure that all of your defined literals are a sufficiently large
-              // data type, for example unsigned long: 700ul
-              // Also, assure that for all values of dist that can reach this
-              // statement, the result in frequency are in the range from
-              // loPITCH to hiPITCH, and that no intermediate arithemetic 
-              // results are less than zero or higher than uint32_t can hold.
-              
-              bendX =(uint16_t) (loBEND +  ((dist - loDIST)*(hiBEND-loBEND))/(hiDIST-loDIST)  ) ;
 
-              }
-         }
-      pitch = bendX*pitch;
-      if (pitch > limitPITCH){
-          pitch = limitPITCH;
-          }
-      return pitch;     
+           
   }
 
 //************************************BENDPITCH*************************************
@@ -411,7 +406,13 @@ uint16_t bendPitch(uint16_t pitch , uint16_t dist){
 
 
 void setPitch(uint16_t freq) {
+    static uint16_t lastFreq; // static initalizes to 0
+
+    if (freq != lastFreq || noToneFlag) {      
        tone(SPEAKER, freq );// tone(pin,freq) sustains last freq unless noTone() is called
+       lastFreq = freq;
+       noToneFlag = false;
+    }
 }
 
 
@@ -435,48 +436,29 @@ void commandPot(int SS, int reg, int level) {
 }
 
 uint8_t getVolumeLevel(uint16_t dist){
-
-// map distances from TOF sensor  to the 129 steps,
+// map normalized dist which ranges from 0 to 1023, into the 129 steps,
 // (0 to 128) of the MCP4231 103E digital potentiometer
 
-#define MAXDISTANCE2 800ul
 
-#define BOTTOMRANGE 30ul
-#define TOPRANGE 600ul
-#define LOSTEP 0ul
-#define HISTEP 128ul
+const uint16_t LoStep = 0;    
+const uint16_t HiStep = 128;   
+static uint16_t lastDist; //static initializes to 0
+static uint8_t volumeLevel; //static initializes to 0
 
-uint8_t volumeL;
-static uint8_t lastVolumeL; 
 
-if (dist >= MAXDISTANCE2){
-     volumeL = lastVolumeL;
+// so if dist = zero on first call, volumeLevel is defined as zero
+// after that, if dist != lastDist, volumeLevel is calculate, or 
+// if dist = lastDist, volumeLevel is unchanged.
 
-    }else {
+  if(lastDist != dist ) {
+       volumeLevel = map(dist,LoNormalRange,HiNormalRange,LoStep,HiStep);
+       lastDist = dist;
+       }
+       
+   return volumeLevel;     
+  }
 
-uint8_t rangeStep = (TOPRANGE-BOTTOMRANGE)/(HISTEP - LOSTEP);
-volumeL = LOSTEP;
-if (dist >= TOPRANGE ){
-    volumeL = HISTEP;
-    } else { 
-        if (dist > (BOTTOMRANGE + rangeStep )){
-          // Careful, intermediate product may be too big for unit16_t and 
-          // would be automatically promoted by the compiler to uint32_t. 
-          // Assure that all of your defined literals are a sufficiently large
-          // data type, for example, unsigned long: 700ul         
-          // Also, assure that for all values of dist that can reach this
-          // statement, the result in volumeLevel are in the range from
-          // ( LOSTEP+1 ) to ( HISTEP-1 ), and that no intermediate arithemetic 
-          // results are less than zero or higher than uint32_t can hold.
-          volumeL = (uint8_t)((dist-BOTTOMRANGE)*(HISTEP-LOSTEP)/(TOPRANGE-BOTTOMRANGE));
-        }
-    }        
 
-    lastVolumeL = volumeL;
-
-    }
-return volumeL;
-}
 
 void setVolumeLevel(uint8_t volumeLevel) {
       commandPot(SS1 ,REG0, volumeLevel); // sets wiper on pot pins P0W
@@ -497,7 +479,7 @@ void broadcastMeasurements()
 
   if (!radio.write(&payload, sizeof(WidgetHeader) + sizeof(int16_t) * (numDistanceMeasmts + 1), !WANT_ACK)) {
 #ifdef ENABLE_DEBUG_PRINT
-    Serial.println(F("radio.write failed."));
+    Serial.println(F("radio.write failed.return volumeL"));
 #endif
   }
   else {
@@ -597,6 +579,7 @@ void loop()
 
 if( deadstickTimeout ) { 
     noTone(SPEAKER);
+    noToneFlag = true;
      
 #ifdef ENABLE_LOOP_PRINT     
     Serial.println(" DEADSTICK_TIMEOUT ");
