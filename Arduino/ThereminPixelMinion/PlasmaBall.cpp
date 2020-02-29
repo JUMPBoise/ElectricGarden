@@ -25,9 +25,10 @@ void PlasmaBall::init(
   uint8_t numMeasmts,
   const uint16_t* minMeasmtValues,
   const uint16_t* maxMeasmtValues,
-  const uint16_t* curMeasmts)
+  const uint16_t* curMeasmts,
+  const uint16_t waveMeasmt)
 {
-  PixelPattern::init(pixels, numPixels, stripNum, sectionNum, numMeasmts, minMeasmtValues, maxMeasmtValues, curMeasmts);
+  PixelPattern::init(pixels, numPixels, stripNum, sectionNum, numMeasmts, minMeasmtValues, maxMeasmtValues, curMeasmts, waveMeasmt);
   
   heat = new uint8_t[numPixels];
   for (int i = 0; i < numPixels; i++) {
