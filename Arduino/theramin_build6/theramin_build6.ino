@@ -112,7 +112,7 @@ static constexpr uint32_t inactiveTxIntervalMs = 500L;  // should be a multiple 
 
 // temporarily, we set RF_CHANNEL to 76, to keep using the radio hardware, but not interfere 
 // with testing of light patterns, put it back to channel 80 later
-#define RF_CHANNEL 80   // Electric Garden Theremin is on ch. 80, Illumicone is on ch. 97
+#define RF_CHANNEL 76   // Electric Garden Theremin is on ch. 80, Illumicone is on ch. 97
 
 // RF24_PA_MIN = -18 dBm, RF24_PA_LOW = -12 dBm, RF24_PA_HIGH = -6 dBm, RF24_PA_MAX = 0 dBm
 #define RF_POWER_LEVEL RF24_PA_MIN
@@ -179,12 +179,13 @@ constexpr uint16_t  HiErgoRange = 600; // is fixed here to be 100 mm to 600 mm
 constexpr uint16_t  LoNormalRange = 0;    // the ergonomic range will be mapped into a normalized
 constexpr uint16_t  HiNormalRange = 1023; // range, from 0 to 1023
 
-#define DEFAULTDIST1 200
-#define DEFAULTDIST2 200
-#define DEFAULTDIST3 200
+#define DEFAULTDIST1 400
+#define DEFAULTDIST2 400
+#define DEFAULTDIST3 400
 
 uint16_t dist1 = DEFAULTDIST1 , dist2 = DEFAULTDIST2 , dist3 = DEFAULTDIST3; // distN is global
 bool deadstickTimeout = false;
+bool sensor3InRange = false;
 uint8_t reallyBack = 0;
 bool noToneFlag = true;
 
@@ -284,16 +285,18 @@ void read_three_sensors() {
 // with local variables measure1, measure2 and measure3. 
 
 static uint16_t measure1,measure2,measure3; // static initializes to zero
-static unsigned long timeLastUsed;
+static uint32_t timeLastUsed;
 
 #ifdef ENABLE_D  
-printf("line 283 measure1: %6d measure2: %6d measure3: %6d\n", measure1,measure2,measure3); 
+printf("read_3_sensorsA measure1: %6d measure2: %6d measure3: %6d\n", measure1,measure2,measure3); 
 #endif
 
-// when values read at sensor, the condition below is the same test that is used by
+// the condition below for reading sensorN is the same test that is used by
 // uint16_t VL53L0X::readRangeContinuousMillimeters(void) to determine whether to
 // actually get the sensor measurement or wait.
-// we only read the sensor if we KNOW we will not wait//
+// we only read the sensor if we KNOW we will not wait
+// if sensor isn't ready, measureX just stays same, no change, it's STATIC
+
   if((sensor1.readReg(VL53L0X::RESULT_INTERRUPT_STATUS) & 0x07) != 0) {
         measure1 = sensor1.readRangeContinuousMillimeters();
         }
@@ -304,18 +307,21 @@ printf("line 283 measure1: %6d measure2: %6d measure3: %6d\n", measure1,measure2
 
   if((sensor3.readReg(VL53L0X::RESULT_INTERRUPT_STATUS) & 0x07) != 0) {
         measure3 = sensor3.readRangeContinuousMillimeters();
-        }              
+        }      
+ 
+               
 #ifdef ENABLE_D 
-printf("line 309 measure1: %6d measure2: %6d measure3: %6d\n", measure1,measure2,measure3); 
+printf("read_3_sensorsB measure1: %6d measure2: %6d measure3: %6d\n", measure1,measure2,measure3); 
 #endif
 
-  uint16_t now = millis();
-  if ( measure1 < DEAD_RANGE || measure2 < DEAD_RANGE || measure3 < DEAD_RANGE ) {
+
+  uint32_t now = millis();
+  if ( measure1 < DEAD_RANGE || measure2 < DEAD_RANGE || (sensor3InRange = (measure3 < DEAD_RANGE ))) {
       timeLastUsed = now;
       } 
 
 #ifdef ENABLE_D 
-printf(" line 318 timeLastUsed: %6d now: %6d delta: %6d \n", timeLastUsed, now, now - timeLastUsed); 
+printf("read_3_sensorsC              timeLastUsed: %6d now: %6d delta: %6d \n", timeLastUsed, now, now - timeLastUsed); 
 #endif
 
       
@@ -327,11 +333,11 @@ printf(" line 318 timeLastUsed: %6d now: %6d delta: %6d \n", timeLastUsed, now, 
       dist2 = DEFAULTDIST2;
       dist3 = DEFAULTDIST3; 
       } else { 
-        if (reallyBack >= 5 ) {
+        if (reallyBack >= 10 ) {
           deadstickTimeout = false;
 
 #ifdef ENABLE_D 
-printf("line 329 dist1: %6d dist2: %6d dist3: %6d\n", dist1,dist2,dist3); 
+printf("read_3_sensorsD dist1: %6d dist2: %6d dist3: %6d\n", dist1,dist2,dist3); 
 #endif
             
           if (measure1 > LoErgoRange && measure1 < HiErgoRange ) {
@@ -349,14 +355,13 @@ printf("line 329 dist1: %6d dist2: %6d dist3: %6d\n", dist1,dist2,dist3);
              dist3 = map(measure3, LoErgoRange, HiErgoRange, LoNormalRange, HiNormalRange);
             }
 #ifdef ENABLE_D 
-printf("line 352 dist1: %6d dist2: %6d dist3: %6d", dist1,dist2,dist3);   
+printf("read_3_sensorsD dist1: %6d dist2: %6d dist3: %6d \n", dist1,dist2,dist3);   
 #endif
            }  else {
            reallyBack++;
         }
      }
-
-
+    
 }
 
 uint16_t getPitch(uint16_t dist){
@@ -390,45 +395,29 @@ uint16_t bendPitch(uint16_t pitch , uint16_t dist){
 //  higher pitch range.
 
 // if the user moves hand away from sensor3 , we want bend to stop,
-// however, there is no easy way to do that, because all the controls for "out of range"
-// are in read_three_sensors() and used for deadstick_timeout
+// so I have created a bool sensor3OutOfRange which is true if 
+// sensor3 is out of range. 
+
+uint16_t T = 300 ; // T is period of the sharp rising chirp, in ms, init to 1000
+// const uint16_t shortT = 200;
+// const uint16_t longT = 400;
 
 #ifdef  ENABLE_D
-printf("line 393 pitch: %6d dist: %6d \n", pitch, dist);
+printf("bendPitchA    pitch: %6d dist: %6d \n", pitch, dist);
 #endif
-pitch = map(dist, HiNormalRange, LoNormalRange, pitch+500, pitch+1000);
+
+if(sensor3InRange) {
+//        T= map(dist, HiNormalRange, LoNormalRange, shortT, longT);
+        T=300;
+        pitch = pitch + millis() % T ;
+        }
+
 #ifdef  ENABLE_D
-printf("line 397 pitch: %6d dist: %6d \n", pitch, dist);
+printf("bendPitchB    pitch: %6d dist: %6d \n", pitch, dist);
 #endif
 
 
-/*
-// we will map dist, which is normalized from 0 to 1023, into a pitch multiplier, bendX, 
-// which will range from 1000 to bendMax.  For now bendMax = 3000. 
-// the pitch we return will be newPitch = (uint16_t)(pitch*bendX/1000) 
-
-// range map is reversed, so close to sensor it high bend
-
-// dist is normalized from 0 to 1023
-// and it is always maintained at last dist if measure at sensor is out of range  
-
-static uint16_t lastDist; //static initializes to 0
-static uint16_t lastBendX;
-const uint16_t bendMax = 3000;  //  max bend factor is 3000/1000 
-uint16_t bendX = 1000;
-
-   if(lastDist != dist ) {
-       bendX = map(dist,HiNormalRange, LoNormalRange,1000,bendMax);
-       lastDist = dist;
-       }
-   if (bendX < 1000 || bendX ) {
-         bendX = 1000;  
-      }
-   if (lastBendX != bendX) { 
-      pitch = (uint16_t)( pitch * bendX/1000);
-   }
-      
-  */     
+     
    return pitch;  
           
 
@@ -513,7 +502,7 @@ void broadcastMeasurements()
 
   if (!radio.write(&payload, sizeof(WidgetHeader) + sizeof(int16_t) * (numDistanceMeasmts + 1), !WANT_ACK)) {
 #ifdef ENABLE_DEBUG_PRINT
-    Serial.println(F("radio.write failed.return volumeL"));
+    Serial.println(F("radio.write f7ailed.return volumeL"));
 #endif
   }
   else {
@@ -622,20 +611,22 @@ if( deadstickTimeout ) {
     noToneFlag = true;
      
 #ifdef ENABLE_D 
-printf(" DEADSTICK_TIMEOUT \n"); 
+printf("loop()A                               DEADSTICK_TIMEOUT \n"); 
 #endif     
   
     } else { 
+
+
            
        Pitch = getPitch(dist1);
-       Pitch = bendPitch(Pitch, dist3);
+       Pitch = bendPitch(Pitch, dist3);  //should have dist = dist3
        Volume = getVolumeLevel(dist2);
 
        setPitch(Pitch);
        setVolumeLevel(Volume);
                
 #ifdef ENABLE_D 
-printf("  Pitch = %6d  Volume = %6d\n", Pitch,Volume); 
+printf("loop()B       Pitch = %6d  Volume = %6d\n", Pitch,Volume); 
 #endif               
 
      
@@ -645,7 +636,7 @@ printf("  Pitch = %6d  Volume = %6d\n", Pitch,Volume);
 
 
 #ifdef ENABLE_STOPWATCH
-  // #ifdef ENABLE_STOPWATCH, then time1 was initiaized to millis() in setup, 
+  // #ifdef ENABLE_STOPWATCH, then time1 was initiaized to millis() in setup(), 
   // and k, a static variable,  is initalized to zero on creation
   k++;
   if (k >= 100) {
