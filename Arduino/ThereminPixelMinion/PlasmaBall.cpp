@@ -11,6 +11,7 @@
  *******************************************************************************/
 
 #include "PlasmaBall.h"
+#define WAVE_SPEED 100
 
 PlasmaBall::~PlasmaBall()
 {
@@ -26,7 +27,7 @@ void PlasmaBall::init(
   const uint16_t* minMeasmtValues,
   const uint16_t* maxMeasmtValues,
   const uint16_t* curMeasmts,
-  const uint16_t waveMeasmt)
+  const uint16_t* waveMeasmt)
 {
   PixelPattern::init(pixels, numPixels, stripNum, sectionNum, numMeasmts, minMeasmtValues, maxMeasmtValues, curMeasmts, waveMeasmt);
   
@@ -97,6 +98,7 @@ void PlasmaBall::update(bool widgetIsActive)
   hsv.hue = hue;
   hsv.sat = 240;
   for (int i = 0; i < numPixels; i++) {
+    hsv.hue = hue + map(sin(i + waveMeasmt[0] * WAVE_SPEED) * 255, -255, 255, -10, 10);
     hsv.value = heat[i];
     pixels[i] = hsv;
   }

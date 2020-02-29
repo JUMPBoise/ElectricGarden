@@ -36,7 +36,7 @@ class PixelPattern {
       const uint16_t* minMeasmtValues,
       const uint16_t* maxMeasmtValues,
       const uint16_t* curMeasmts,
-      const uint16_t waveMeasmt)
+      const uint16_t* waveMeasmt)
     {
       this->pixels = pixels;
       this->numPixels = numPixels;
@@ -73,7 +73,7 @@ class PixelPattern {
 
     int16_t* curMeasmts;
 
-    int16_t waveMeasmt;
+    int16_t* waveMeasmt;
 
   private:
 

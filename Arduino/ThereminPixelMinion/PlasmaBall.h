@@ -38,7 +38,7 @@ class PlasmaBall : public PixelPattern {
       const uint16_t* minMeasmtValues,
       const uint16_t* maxMeasmtValues,
       const uint16_t* curMeasmts,
-      const uint16_t waveMeasmt);
+      const uint16_t* waveMeasmt);
     void update(bool widgetIsActive);
 
   private:

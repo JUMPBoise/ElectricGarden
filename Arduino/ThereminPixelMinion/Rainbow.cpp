@@ -11,7 +11,7 @@
  *******************************************************************************/
 
 #include "Rainbow.h"
-
+#define WAVE_SPEED 100
 
 void Rainbow::update(bool widgetIsActive)
 {
@@ -30,8 +30,7 @@ void Rainbow::update(bool widgetIsActive)
   for( int i = 0; i < numPixels; i++) {
       pixels[i] = hsv;
       currentHue += hueStep;
+      hsv.val = map(sin(i + waveMeasmt[0] * WAVE_SPEED) * 255, -255, 255, brightness * 0.66, brightness);
       hsv.hue = (currentHue % 25500) / 100;
   }
-  
-  nscale8_video(pixels, numPixels, brightness);
 }

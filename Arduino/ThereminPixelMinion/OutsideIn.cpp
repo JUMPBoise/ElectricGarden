@@ -11,6 +11,7 @@
  *******************************************************************************/
 
 #include "OutsideIn.h"
+#define WAVE_SPEED 100
 
 void OutsideIn::start()
 {
@@ -24,24 +25,27 @@ void OutsideIn::update(bool widgetIsActive)
   uint8_t fillPercent = map(curMeasmts[2], minMeasmtValues[2], maxMeasmtValues[2], 0, 100);
 
   // Black out
-  CRGB fill;
-  fill_solid(pixels, numPixels, fill.setHue(hue + (255/2)));
+  CHSV fill = CHSV(hue + (255/3), 240, 255);
+  for ( int i = 0; i < numPixels; i++) {
+    fill.val = map(sin(i + waveMeasmt[0] * WAVE_SPEED) * 255, -255, 255, brightness * 0.66, brightness);
+    pixels[i] = fill;
+  }
   
   CHSV hsv;
   hsv.hue = hue;
   hsv.val = 255;
   hsv.sat = 240;
   uint8_t fillPixelCount = fillPercent * numPixels / 200;
-  Serial.print(F("fill Percent"));
-  Serial.print(fillPercent);
-  Serial.print(F(", fill Pixels "));
-  Serial.println(fillPixelCount);
   for( int i = 0; i < fillPixelCount; i++) {
+      hsv.val = map(sin(i + waveMeasmt[0] * WAVE_SPEED) * 255, -255, 255, brightness * 0.66, brightness);
       pixels[i] = hsv;
+      
+      hsv.val = map(sin((numPixels - i - 1) + waveMeasmt[0] * WAVE_SPEED) * 255, -255, 255, brightness * 0.66, brightness);
       pixels[numPixels - i - 1] = hsv;
   }
 
-  if (fillPercent == 100) pixels[middlePixel] = hsv;
-  
-  nscale8_video(pixels, numPixels, brightness);
+  if (fillPercent == 100) {
+    hsv.val = map(sin(middlePixel + waveMeasmt[0] * WAVE_SPEED) * 255, -255, 255, brightness * 0.66, brightness);
+    pixels[middlePixel] = hsv;
+  }
 }
