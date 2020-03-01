@@ -35,7 +35,8 @@ class PixelPattern {
       uint8_t numMeasmts,
       const uint16_t* minMeasmtValues,
       const uint16_t* maxMeasmtValues,
-      const uint16_t* curMeasmts)
+      const uint16_t* curMeasmts,
+      const uint16_t* waveMeasmt)
     {
       this->pixels = pixels;
       this->numPixels = numPixels;
@@ -45,6 +46,7 @@ class PixelPattern {
       this->minMeasmtValues = minMeasmtValues;
       this->maxMeasmtValues = maxMeasmtValues;
       this->curMeasmts = curMeasmts;
+      this->waveMeasmt = waveMeasmt;
     };
 
     // start() is called when the pattern has been selected but before update() is
@@ -70,6 +72,8 @@ class PixelPattern {
     int16_t* maxMeasmtValues;
 
     int16_t* curMeasmts;
+
+    int16_t* waveMeasmt;
 
   private:
 

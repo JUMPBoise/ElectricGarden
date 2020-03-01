@@ -334,6 +334,9 @@ static bool widgetIsActive;
 static uint8_t activePatternId;
 static int16_t currentDistance[numDistanceMeasmts];
 
+static bool shiftForward = true;
+static int16_t waveMeasmt[1];
+
 #ifdef ENABLE_RADIO
 static RF24 radio(9, 10);    // CE on pin 9, CSN on pin 10, also uses SPI bus (SCK on 13, MISO on 12, MOSI on 11)
 #endif
@@ -462,6 +465,11 @@ void updatePattern()
     }
   }
 
+}
+
+void shiftWave () {
+  waveMeasmt[0] += (shiftForward ? 1 : -1);
+  if (waveMeasmt[0] == 100 || waveMeasmt[0] == 0) shiftForward = waveMeasmt[0] != 100;
 }
 
 
@@ -815,7 +823,8 @@ void initPatterns()
             numDistanceMeasmts,
             minDistance,
             maxDistance,
-            currentDistance);
+            currentDistance,
+            waveMeasmt);
 #ifdef ENABLE_DEBUG_PRINT
           Serial.print(freeRam());
           Serial.print(F(" bytes available after instantiating pattern id "));
@@ -892,6 +901,7 @@ void loop()
 
   // Periodically update the pattern.
   EVERY_N_MILLISECONDS(PATTERN_UPDATE_INTERVAL_MS) {
+    shiftWave();
     updatePattern();
   }
 

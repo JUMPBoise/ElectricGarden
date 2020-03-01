@@ -11,6 +11,9 @@
  *******************************************************************************/
 
 #include "Stripes.h"
+#define WAVE_SPEED 100
+#define BRIGHTNESS_MIN 180
+#define BRIGHTNESS_MAX 255
 
 void Stripes::update(bool widgetIsActive)
 {
@@ -31,16 +34,20 @@ void Stripes::update(bool widgetIsActive)
   uint8_t stripePixelCount = max((numPixels * stripeSize) / 100, 1);
   uint8_t startPosition = (numPixels * startPositionPercent) / 100;
 
+  uint8_t brightness = 0;
+
   // Fill Forward
   bool isColor1 = true;
   uint8_t currentStripeCount = stripePixelCount;
   for (int i = startPosition; i < numPixels; i++) {
-      pixels[i] = isColor1 ? hsv1 : hsv2;
-      currentStripeCount--;
-      if (currentStripeCount == 0) {
-        isColor1 = !isColor1;
-        currentStripeCount = stripePixelCount;
-      }
+    brightness = map(sin(i + waveMeasmt[0] * WAVE_SPEED) * 255, -255, 255, BRIGHTNESS_MIN, BRIGHTNESS_MAX);
+    hsv1.val = hsv2.val = brightness;
+    pixels[i] = isColor1 ? hsv1 : hsv2;
+    currentStripeCount--;
+    if (currentStripeCount == 0) {
+      isColor1 = !isColor1;
+      currentStripeCount = stripePixelCount;
+    }
   }
 
   // Fill Backward
@@ -48,12 +55,14 @@ void Stripes::update(bool widgetIsActive)
     isColor1 = false;
     currentStripeCount = stripePixelCount;
     for (int i = startPosition; i > 0; i--) {
-        pixels[i] = isColor1 ? hsv1 : hsv2;
-        currentStripeCount--;
-        if (currentStripeCount == 0) {
-          isColor1 = !isColor1;
-          currentStripeCount = stripePixelCount;
-        }
+      brightness = map(sin(i + waveMeasmt[0] * WAVE_SPEED) * 255, -255, 255, BRIGHTNESS_MIN, BRIGHTNESS_MAX);
+      hsv1.val = hsv2.val = brightness;
+      pixels[i] = isColor1 ? hsv1 : hsv2;
+      currentStripeCount--;
+      if (currentStripeCount == 0) {
+        isColor1 = !isColor1;
+        currentStripeCount = stripePixelCount;
+      }
     }
   }
   
