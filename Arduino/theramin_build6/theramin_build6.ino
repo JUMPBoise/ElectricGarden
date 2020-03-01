@@ -32,9 +32,9 @@
 // #include <LibPrintf.h> // always compile serial and printf
 
 #define ENABLE_RADIO
-#define ENABLE_DEBUG_PRINT
-#define ENABLE_D // comment out to drop tagged printing
-#define ENABLE_STOPWATCH // comment out unless you want to to measure elapsed time between loops
+//#define ENABLE_DEBUG_PRINT
+//#define ENABLE_D // comment out to drop tagged printing
+//#define ENABLE_STOPWATCH // comment out unless you want to to measure elapsed time between loops
 
 #ifdef ENABLE_STOPWATCH
   static unsigned long stopwatchTime1;
@@ -81,12 +81,16 @@ static constexpr uint8_t widgetId = 30;
 static constexpr uint32_t activeTxIntervalMs = 50L;
 static constexpr uint32_t inactiveTxIntervalMs = 500L;  // should be a multiple of activeTxIntervalMs
 
-constexpr uint16_t DEADSTICK_TIMEOUT_PERIOD = 5000; // 5000 ms.
+static constexpr uint16_t DEADSTICK_TIMEOUT_PERIOD = 5000; // 5000 ms.
 
-constexpr uint16_t  LoErgoRange = 100; // the ergonomic range where sensors are used to play music
-constexpr uint16_t  HiErgoRange = 600; // is fixed here to be 100 mm to 600 mm
-constexpr uint16_t  LoNormalRange = 0;    // the ergonomic range will be mapped into a normalized
-constexpr uint16_t  HiNormalRange = 1023; // range, from 0 to 1023
+static constexpr uint16_t  LoErgoRange = 200; // the ergonomic range where sensors are used to play music
+static constexpr uint16_t  HiErgoRange = 700; // is fixed here to be 100 mm to 600 mm
+static constexpr uint16_t  LoNormalRange = 0;    // the ergonomic range will be mapped into a normalized
+static constexpr uint16_t  HiNormalRange = 1023; // range, from 0 to 1023
+static constexpr uint16_t volumePotLowStep = 0;
+static constexpr uint16_t volumePotHiStep = 128;
+static constexpr uint16_t LoPitch = 300;    //  lowest frequency toned is 300 hz
+static constexpr uint16_t HiPitch = 4000;  //  highest frequency toned is 4000 hz  
 
 #define DEFAULTDIST1 400
 #define DEFAULTDIST2 400
@@ -94,6 +98,10 @@ constexpr uint16_t  HiNormalRange = 1023; // range, from 0 to 1023
 
 // We need to see numGoodMeasurementsForDeadstickExit good measurements before exiting deadstick mode.
 constexpr uint8_t numGoodMeasurementsForDeadstickExit = 10;
+
+constexpr uint16_t measurementChangeDeadband = 1;
+
+constexpr uint32_t sensorReadHoldoffMs = 60;
 
 
 // ---------- radio configuration ----------
@@ -197,7 +205,6 @@ static bool measurementInRange3;
 
 bool deadstickTimeout = false;
 
-
 uint8_t deadstickGoodMeasmtCount = 0;
 
 // noToneFlag is set when we turn off the speaker due to inactivity.
@@ -296,12 +303,16 @@ void read_three_sensors()
   // normalized by mapping from the ergomomic range to the range from 0 to 1023. We'll read them
   // with local variables measure1, measure2 and measure3.
 
-  static uint16_t measure1, measure2, measure3; // static initializes to zero
+  static int16_t measure1, measure2, measure3; // static initializes to zero
 
   // timeLastUsed tracks when any one of the sensors had valid data, meaning that
   // the theremin was in use.  We go into deadstick timeout mode when the theremin
   // hasn't been used for more than DEADSTICK_TIMEOUT_PERIOD ms.
   static uint32_t timeLastUsed;
+
+  static uint32_t lastReadSensor1Ms, lastReadSensor2Ms, lastReadSensor3Ms;
+
+  uint32_t now = millis();
 
 #ifdef ENABLE_D
   printf("read_3_sensorsA measure1: %6d measure2: %6d measure3: %6d\n", measure1,measure2,measure3);
@@ -313,26 +324,41 @@ void read_three_sensors()
   // we only read the sensor if we KNOW we will not wait
   // if sensor isn't ready, measureX just stays same, no change, it's STATIC
 
-  if((sensor1.readReg(VL53L0X::RESULT_INTERRUPT_STATUS) & 0x07) != 0) {
-    measure1 = sensor1.readRangeContinuousMillimeters();
-    measurementInRange1 = (measure1 > LoErgoRange && measure1 < HiErgoRange);
+  if ((now - lastReadSensor1Ms) > sensorReadHoldoffMs) {
+//    if ((sensor1.readReg(VL53L0X::RESULT_INTERRUPT_STATUS) & 0x07) != 0) {
+      lastReadSensor1Ms = now;
+      int16_t newMeasure = sensor1.readRangeContinuousMillimeters();
+      if (abs(newMeasure - measure1) > measurementChangeDeadband) {
+        measure1 = newMeasure;
+        measurementInRange1 = (measure1 > LoErgoRange && measure1 < HiErgoRange);
+      }
+//    }
   }
 
-  if((sensor2.readReg(VL53L0X::RESULT_INTERRUPT_STATUS) & 0x07) != 0) {
-    measure2 = sensor2.readRangeContinuousMillimeters();
-    measurementInRange2 = (measure2 > LoErgoRange && measure2 < HiErgoRange);
+  if ((now - lastReadSensor2Ms) > sensorReadHoldoffMs) {
+//    if ((sensor2.readReg(VL53L0X::RESULT_INTERRUPT_STATUS) & 0x07) != 0) {
+      lastReadSensor2Ms = now;
+      int16_t newMeasure = sensor2.readRangeContinuousMillimeters();
+      if (abs(newMeasure - measure2) > measurementChangeDeadband) {
+        measure2 = newMeasure;
+        measurementInRange2 = (measure2 > LoErgoRange && measure2 < HiErgoRange);
+      }
+//    }
   }
 
-  if((sensor3.readReg(VL53L0X::RESULT_INTERRUPT_STATUS) & 0x07) != 0) {
-    measure3 = sensor3.readRangeContinuousMillimeters();
-    measurementInRange3 = (measure3 > LoErgoRange && measure3 < HiErgoRange);
+  if ((now - lastReadSensor3Ms) > sensorReadHoldoffMs) {
+//    if ((sensor3.readReg(VL53L0X::RESULT_INTERRUPT_STATUS) & 0x07) != 0) {
+      lastReadSensor3Ms = now;
+      int16_t newMeasure = sensor3.readRangeContinuousMillimeters();
+      if (abs(newMeasure - measure3) > measurementChangeDeadband) {
+        measure3 = newMeasure;
+        measurementInRange3 = (measure3 > LoErgoRange && measure3 < HiErgoRange);
+      }
+//    }
   }
-
 #ifdef ENABLE_D
   printf("read_3_sensorsB measure1: %6d measure2: %6d measure3: %6d\n", measure1,measure2,measure3);
 #endif
-
-  uint32_t now = millis();
 
   if (!measurementInRange1 && !measurementInRange2 && !measurementInRange3) {
     // We'll go into deadstick mode if the theremin hasn't been interacted with for a while.
@@ -387,9 +413,6 @@ uint16_t getPitch(uint16_t dist)
 
   static uint16_t lastDist; //static initializes to 0
   static uint16_t frequency;
-
-  const uint16_t LoPitch = 30;    //  lowest frequency toned is 30 hz
-  const uint16_t HiPitch = 6000;  //  highest frequency toned is 6000 hz
 
 #ifdef ENABLE_D
   printf("\nline 371 lastDist: %6d dist: %6d frequency: %6d\n",lastDist, dist, frequency);
@@ -488,9 +511,6 @@ uint8_t getVolumeLevel(uint16_t dist)
   // map normalized dist which ranges from 0 to 1023, into the 129 steps,
   // (0 to 128) of the MCP4231 103E digital potentiometer
 
-  const uint16_t LoStep = 0;
-  const uint16_t HiStep = 128;
-
   static uint16_t lastDist; //static initializes to 0
   static uint8_t volumeLevel; //static initializes to 0
 
@@ -499,7 +519,7 @@ uint8_t getVolumeLevel(uint16_t dist)
   // if dist = lastDist, volumeLevel is unchanged.
 
   if (lastDist != dist ) {
-    volumeLevel = map(dist,LoNormalRange,HiNormalRange,LoStep,HiStep);
+    volumeLevel = map(dist,LoNormalRange,HiNormalRange,volumePotLowStep,volumePotHiStep);
     lastDist = dist;
   }
 
