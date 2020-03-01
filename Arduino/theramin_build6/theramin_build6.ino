@@ -31,8 +31,8 @@
 
 // #include <LibPrintf.h> // always compile serial and printf
 
-//#define ENABLE_RADIO
-//#define ENABLE_DEBUG_PRINT
+#define ENABLE_RADIO
+#define ENABLE_DEBUG_PRINT
 #define ENABLE_D // comment out to drop tagged printing 
 #define ENABLE_STOPWATCH // comment out unless you want to to measure elapsed time between loops
 
@@ -112,7 +112,7 @@ static constexpr uint32_t inactiveTxIntervalMs = 500L;  // should be a multiple 
 
 // temporarily, we set RF_CHANNEL to 76, to keep using the radio hardware, but not interfere 
 // with testing of light patterns, put it back to channel 80 later
-#define RF_CHANNEL 76   // Electric Garden Theremin is on ch. 80, Illumicone is on ch. 97
+#define RF_CHANNEL 80  // Electric Garden Theremin is on ch. 80, Illumicone is on ch. 97
 
 // RF24_PA_MIN = -18 dBm, RF24_PA_LOW = -12 dBm, RF24_PA_HIGH = -6 dBm, RF24_PA_MAX = 0 dBm
 #define RF_POWER_LEVEL RF24_PA_MIN
@@ -399,18 +399,28 @@ uint16_t bendPitch(uint16_t pitch , uint16_t dist){
 // sensor3 is out of range. 
 
 uint16_t T = 300 ; // T is period of the sharp rising chirp, in ms, init to 1000
-// const uint16_t shortT = 200;
-// const uint16_t longT = 400;
+ const uint16_t shortT = 200;
+ const uint16_t longT = 400;
 
 #ifdef  ENABLE_D
 printf("bendPitchA    pitch: %6d dist: %6d \n", pitch, dist);
 #endif
 
-if(sensor3InRange) {
-//        T= map(dist, HiNormalRange, LoNormalRange, shortT, longT);
+/*if(sensor3InRange) {
+        T= map(dist,  LoNormalRange,HiNormalRange, shortT, longT);
+        pitch = pitch + 300* (millis() % T) / T;
+        } */
+        
+/*if(sensor3InRange) {
         T=300;
-        pitch = pitch + millis() % T ;
-        }
+        pitch = pitch + 300* (millis() % T) / T;
+        } */
+
+ if(sensor3InRange) {
+        T=300;
+        pitch = pitch + millis() % T;
+        } 
+        
 
 #ifdef  ENABLE_D
 printf("bendPitchB    pitch: %6d dist: %6d \n", pitch, dist);
