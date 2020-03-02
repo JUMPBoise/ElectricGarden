@@ -41,10 +41,11 @@
   static unsigned long k ; // by default, on creation, static is initalized to zero
 #endif
 
-// from Single_Buzzer.ino
-#include <Wire.h> // not in ...build3 because it's clearly in Adafruit_VL53L0X.h
-#include <VL53L0X.h> // this is the header for the Pololu library for vl53l0x
+#include <limits.h>       // for INT_MAX
+#include <Wire.h>
+#include <VL53L0X.h>      // this is the header for the Pololu library for vl53l0x
 #include <RF24.h>
+#include <SPI.h>
 
 #ifdef ENABLE_DEBUG_PRINT
 #include "printf.h"
@@ -61,18 +62,17 @@
 
 #define SPEAKER  6      // use pin D6 on Nano
 
-// from spi_demo_nano.ino and is used to enable the digital potentiomenter
-#include <SPI.h>  // comment this out if your radio library establishes SPI
-#define SS1  7 //Pin 7 is SS (slave select) for device 1
-#define REG0 B00000000 //Register 0 Write command for Px0 pins
-#define REG1 B00010000 //Register 1 Write command for Px1 pins
+// digital potentiometer
+#define SS1  7          //Pin 7 is SS (slave select) for device 1
+#define REG0 B00000000  //Register 0 Write command for Px0 pins
+#define REG1 B00010000  //Register 1 Write command for Px1 pins
 
-// address we will assign if dual sensor is present
+// SPI addresses for the distance sensors
 #define SENSOR1_ADDRESS 0x33
 #define SENSOR2_ADDRESS 0x35
 #define SENSOR3_ADDRESS 0x37
 
-// set the pins to shutdown
+// pins connected to XSHUT on each distance sensor
 #define SHT_SENSOR1 2  // D2 is the Nano pin conected to XSHUT for sensor1
 #define SHT_SENSOR2 3  // D3 is the Nano pin conected to XSHUT for sensor2
 #define SHT_SENSOR3 4  // D4 is the Nano pin conected to XSHUT for sensor3
@@ -99,9 +99,25 @@ static constexpr uint16_t HiPitch = 4000;  //  highest frequency toned is 4000 h
 // We need to see numGoodMeasurementsForDeadstickExit good measurements before exiting deadstick mode.
 constexpr uint8_t numGoodMeasurementsForDeadstickExit = 10;
 
+// sensor measurement changes that are less than the deadband are ignored
 constexpr uint16_t measurementChangeDeadband = 1;
 
+// how long to wait after reading a sensor before checking if it has a new measurement
 constexpr uint32_t sensorReadHoldoffMs = 60;
+
+// Rotating an Illumcone flower widget long enough in one direction or
+// the other changes the pattern selection in the pixel minions.  Here,
+// we're assuming that the rotational velocity is positive when the flower
+// is rotation clockwise.  It might be that the velocity is positive when
+// the flower rotates counterclockwise.  In any case, physical reality
+// doesn't matter here as much as the concept that the flower can rotate
+// in two different directions, one with positive velocity and the other
+// with negative velocity.  No normal person will discern if the pattern
+// number is increasing or decreasing with one rotation or the other, so
+// who cares what the physical reality of the situation may be.
+static constexpr int16_t flowerMinCwRotVel = 100;
+static constexpr int16_t flowerMinCCwRotVel = -100;
+static constexpr uint32_t rotDurationForChangeMs = 3000;
 
 
 // ---------- radio configuration ----------
@@ -183,6 +199,17 @@ struct CustomPayload {
 };
 
 
+// states for the flower rotation state machine that does pattern selection
+enum class FlowerRotationState {
+  INIT,
+  FLOWER_NOT_ROTATING,
+  FLOWER_ROTATING_CW,
+  WAIT_FLOWER_STOP_ROTATING_CW,
+  FLOWER_ROTATING_CCW,
+  WAIT_FLOWER_STOP_ROTATING_CCW
+};
+
+
 // ************************************ GLOBAL VARIABLES **************************
 
 RF24 radio(9, 10);    // CE on pin 9, CSN on pin 10, also uses SPI bus (SCK on 13, MISO on 12, MOSI on 11)
@@ -192,8 +219,10 @@ static MeasurementVectorPayload payload;
 static bool isActive;
 static bool wasActive;
 
-// TODO:  Need to select the pattern somehow.
-static uint8_t patternNum = 1;
+// We don't know how many patterns the pixel minion supports, so we'll send
+// a number in the range [0, INT_MAX] and let the minion figure out the pattern
+// number using patternNumStep mod numPatterns.
+static int16_t patternNumStep = 1;
 
 uint16_t dist1 = DEFAULTDIST1;
 uint16_t dist2 = DEFAULTDIST2;
@@ -214,6 +243,8 @@ bool noToneFlag = true;
 VL53L0X sensor1; // constructor for Pololu's sensor control objects
 VL53L0X sensor2;
 VL53L0X sensor3;
+
+int16_t currentFlowerRotVel;
 
 
 void initDistanceSensors()
@@ -488,21 +519,10 @@ void setPitch(uint16_t freq)
 
 void commandPot(int SS, int reg, int level)
 {
-  // from spi_demo_nano.ino
-
-  // SPI.beginTransaction(SPISettings(14000000, MSBFIRST, SPI_MODE0));
-  // only use SPI.beginTransaction(...) & SPI.endTransaction(...) in
-  // coordination with your radio library, which uses SPI internally
-
-  digitalWrite(SS, LOW); // set the named pin LOW
-                         // to select that chip
-  SPI.transfer(reg  ); // send the first byte to pick the register
-                       // number of the potentionmeter of the selected chip
-  SPI.transfer(level); // send the 2nd byte to set the level of that
-                       // potentiometer
-  digitalWrite(SS,HIGH); // de-select that chip
-
-  //SPI.endTransaction();
+  digitalWrite(SS, LOW);  // set the named pin LOW to select that chip
+  SPI.transfer(reg  );    // send the first byte to pick the register number of the potentionmeter
+  SPI.transfer(level);    // send the 2nd byte to set the level of that potentiometer
+  digitalWrite(SS,HIGH);  // de-select that chip
 }
 
 
@@ -534,20 +554,226 @@ void setVolumeLevel(uint8_t volumeLevel)
 }
 
 
+
+/***********************
+ * Radio Communication *
+ ***********************/
+
+bool handleMeasurementVectorPayload(const MeasurementVectorPayload* payload, uint8_t payloadSize)
+{
+  // Sets currentFlowerRotVel.  Returns true if we got a
+  // valid measurement vector payload with valid data.
+
+  // An Illumicone flower widget sends seven measurements:
+  // 0:Yaw 1:Pitch 2:Roll 3:GyroX 4:GyroY 5:GyroZ 6:Temperature
+  constexpr uint8_t numFlowerMeasmts = 7;
+
+  static uint8_t newPatternRepetitionCount;
+
+  constexpr uint16_t expectedPayloadSize = sizeof(WidgetHeader) + sizeof(int16_t) * (numFlowerMeasmts);
+  if (payloadSize != expectedPayloadSize) {
+#ifdef ENABLE_DEBUG_PRINT
+    Serial.print(F("got MeasurementVectorPayload from widget "));
+    Serial.print(payload->widgetHeader.id);
+    Serial.print(F(" with "));
+    Serial.print(payloadSize);
+    Serial.print(F(" bytes but expected "));
+    Serial.print(expectedPayloadSize);
+    Serial.println(F(" bytes"));    
+#endif
+    return false;
+  }
+
+  // Only one widget should be configured to transmit on the theremin's channel,
+  // and that widget should be a flower.  So, we won't worry about the widget
+  // id in payload->widgetHeader.id.
+
+  if (payload->widgetHeader.isActive) {
+    // We use the GyroZ measurement, which is the rotational velocity of the flower.
+    currentFlowerRotVel = payload->measurements[5];
+#ifdef ENABLE_DEBUG_PRINT
+    Serial.print(F("got currentFlowerRotVel "));
+    Serial.println(currentFlowerRotVel);
+#endif
+  }
+  else {
+    Serial.println(F("Flower is inactive; setting currentFlowerRotVel to 0."));
+    currentFlowerRotVel = 0;
+  }
+
+  return true;
+}
+
+
+void pollRadio()
+{
+#ifdef ENABLE_RADIO
+
+  uint8_t pipeNum;
+  if (!radio.available(&pipeNum)) {
+    return;
+  }
+
+  constexpr uint8_t maxPayloadSize = 32 + sizeof(WidgetHeader);
+  uint8_t payload[maxPayloadSize];
+  uint8_t payloadSize = radio.getDynamicPayloadSize();
+  if (payloadSize > maxPayloadSize) {
+#ifdef ENABLE_DEBUG_PRINT
+    Serial.print(F("got message on pipe "));
+    Serial.print(pipeNum);
+    Serial.print(F(" with payload size "));
+    Serial.print(payloadSize);
+    Serial.print(F(" but maximum payload size is "));
+    Serial.println(maxPayloadSize);
+#endif
+    return;
+  }
+#ifdef ENABLE_DEBUG_PRINT
+  Serial.print(F("got message on pipe "));
+  Serial.println(pipeNum);
+#endif
+
+  radio.read(payload, payloadSize);
+
+  bool gotValidPayload = false;
+  switch(pipeNum) {
+    case 2:
+        gotValidPayload = handleMeasurementVectorPayload((MeasurementVectorPayload*) payload, payloadSize);
+        break;
+    default:
+#ifdef ENABLE_DEBUG_PRINT
+      Serial.print(F("got message on unsupported pipe "));
+      Serial.println(pipeNum);
+#endif
+      break;
+  }
+
+#endif  // #ifdef ENABLE_RADIO
+}
+
+
+void runPatternSelectionStateMachine(void)
+{
+  static FlowerRotationState state = FlowerRotationState::INIT;
+  static uint32_t lastRotChangeMs;
+
+  uint32_t now = millis();
+
+  // Get an updated currentFlowerRotVel if one is available.
+  pollRadio();
+
+  switch(state) {
+
+    case FlowerRotationState::INIT:
+      lastRotChangeMs = now;
+      state = FlowerRotationState::FLOWER_NOT_ROTATING;
+      break;
+
+    case FlowerRotationState::FLOWER_NOT_ROTATING:
+      // Rotating clockwise?
+      if (currentFlowerRotVel >= flowerMinCwRotVel) {
+        lastRotChangeMs = now;
+        state = FlowerRotationState::FLOWER_ROTATING_CW;
+      }
+      // Rotating counterclockwise?
+      else if (currentFlowerRotVel <= flowerMinCCwRotVel) {
+        lastRotChangeMs = now;
+        state = FlowerRotationState::FLOWER_ROTATING_CCW;
+      }
+      break;
+
+    case FlowerRotationState::FLOWER_ROTATING_CW:
+      // Slow or stopped?
+      if (currentFlowerRotVel > flowerMinCCwRotVel && currentFlowerRotVel < flowerMinCwRotVel) {
+        lastRotChangeMs = now;
+        state = FlowerRotationState::FLOWER_NOT_ROTATING;
+      }
+      // Now rotating counterclockwise?
+      else if (currentFlowerRotVel <= flowerMinCCwRotVel) {
+        lastRotChangeMs = now;
+        state = FlowerRotationState::FLOWER_ROTATING_CCW;
+      }
+      // Been rotating clockwise long enough?
+      else if (now - lastRotChangeMs > rotDurationForChangeMs) {
+        if (patternNumStep < INT_MAX) {
+          ++patternNumStep;
+        }
+        else {
+          patternNumStep = 0;
+        }
+        state = FlowerRotationState::WAIT_FLOWER_STOP_ROTATING_CW;
+      }
+      break;
+
+    case FlowerRotationState::WAIT_FLOWER_STOP_ROTATING_CW:
+      // Slow or stopped?
+      if (currentFlowerRotVel > flowerMinCCwRotVel && currentFlowerRotVel < flowerMinCwRotVel) {
+        lastRotChangeMs = now;
+        state = FlowerRotationState::FLOWER_NOT_ROTATING;
+      }
+      // Now rotating counterclockwise?
+      else if (currentFlowerRotVel <= flowerMinCCwRotVel) {
+        lastRotChangeMs = now;
+        state = FlowerRotationState::FLOWER_ROTATING_CCW;
+      }
+      break;
+
+    case FlowerRotationState::FLOWER_ROTATING_CCW:
+      if (currentFlowerRotVel > flowerMinCCwRotVel && currentFlowerRotVel < flowerMinCwRotVel) {
+        lastRotChangeMs = now;
+        state = FlowerRotationState::FLOWER_NOT_ROTATING;
+      }
+      // Now rotating clockwise?
+      else if (currentFlowerRotVel >= flowerMinCwRotVel) {
+        lastRotChangeMs = now;
+        state = FlowerRotationState::FLOWER_ROTATING_CW;
+      }
+      // Been rotating counterclockwise long enough?
+      else if (now - lastRotChangeMs > rotDurationForChangeMs) {
+        if (patternNumStep > 0) {
+          --patternNumStep;
+        }
+        else {
+          patternNumStep = INT_MAX;
+        }
+        state = FlowerRotationState::WAIT_FLOWER_STOP_ROTATING_CCW;
+      }
+      break;
+
+    case FlowerRotationState::WAIT_FLOWER_STOP_ROTATING_CCW:
+      // Slow or stopped?
+      if (currentFlowerRotVel > flowerMinCCwRotVel && currentFlowerRotVel < flowerMinCwRotVel) {
+        lastRotChangeMs = now;
+        state = FlowerRotationState::FLOWER_NOT_ROTATING;
+      }
+      // Now rotating clockwise?
+      else if (currentFlowerRotVel >= flowerMinCwRotVel) {
+        lastRotChangeMs = now;
+        state = FlowerRotationState::FLOWER_ROTATING_CW;
+      }
+      break;
+  }
+}
+
+
 void broadcastMeasurements()
 {
+#ifdef ENABLE_RADIO
+
   constexpr uint8_t numDistanceMeasmts = 3;
 
-  payload.measurements[0] = patternNum;
+  payload.measurements[0] = patternNumStep;
   payload.measurements[1] = dist1 >= 0 && dist1 <= 1023 ? dist1 : 1023;
   payload.measurements[2] = dist2 >= 0 && dist2 <= 1023 ? dist2 : 1023;
   payload.measurements[3] = dist3 >= 0 && dist3 <= 1023 ? dist3 : 1023;
 
   payload.widgetHeader.isActive = isActive;
 
+  radio.stopListening();
+
   if (!radio.write(&payload, sizeof(WidgetHeader) + sizeof(int16_t) * (numDistanceMeasmts + 1), !WANT_ACK)) {
 #ifdef ENABLE_DEBUG_PRINT
-    Serial.println(F("radio.write f7ailed.return volumeL"));
+    Serial.println(F("radio.write failed."));
 #endif
   }
   else {
@@ -555,6 +781,10 @@ void broadcastMeasurements()
     Serial.println(F("radio.write succeeded."));
 #endif
   }
+
+  radio.startListening();
+
+#endif  // #ifdef ENABLE_RADIO
 }
 
 
@@ -585,8 +815,7 @@ void configureRadio(
   radio.printDetails();
 #endif
 
-  // Widgets only transmit data.
-  radio.stopListening();
+  radio.startListening();
 }
 
 
@@ -658,6 +887,9 @@ void loop()
     printf("loop()B       Pitch = %6d  Volume = %6d\n", Pitch,Volume);
 #endif       
   }
+
+  // Check for and act on an update from the pattern selection widget.
+  runPatternSelectionStateMachine();
 
   // The theremin is active when a deadstick timeout has not occurred.
   isActive = !deadstickTimeout;
