@@ -32,7 +32,7 @@
 // #include <LibPrintf.h> // always compile serial and printf
 
 #define ENABLE_RADIO
-#define ENABLE_DEBUG_PRINT
+//#define ENABLE_DEBUG_PRINT
 //#define ENABLE_D // comment out to drop tagged printing
 //#define ENABLE_STOPWATCH // comment out unless you want to to measure elapsed time between loops
 
@@ -115,16 +115,13 @@ constexpr uint32_t sensorReadHoldoffMs = 60;
 // with negative velocity.  No normal person will discern if the pattern
 // number is increasing or decreasing with one rotation or the other, so
 // who cares what the physical reality of the situation may be.
-static constexpr int16_t flowerMinCwRotVel = 100;
-static constexpr int16_t flowerMinCCwRotVel = -100;
-static constexpr uint32_t rotDurationForChangeMs = 3000;
-
+static constexpr int16_t flowerMinCwRotVel = 20;
+static constexpr int16_t flowerMinCCwRotVel = -20;
+static constexpr uint32_t rotDurationForChangeMs = 2000;
+static constexpr uint8_t allOffPatternId = 255;
+static constexpr uint8_t testPatternIdRangeStart = 250;
 
 // ---------- radio configuration ----------
-
-// Nwdgt, where N indicates the payload type (0: stress test; 1: position
-// and velocity; 2: measurement vector; 3,4: undefined; 5: custom)
-#define TX_PIPE_ADDRESS "2wdgt"
 
 // Nwdgt, where N indicates the pipe number (0-6) and payload type (0: stress test;
 // 1: position & velocity; 2: measurement vector; 3,4: undefined; 5: custom
@@ -149,7 +146,7 @@ constexpr int numReadPipes = sizeof(readPipeAddresses) / (sizeof(uint8_t) * 6);
 
 // Possible data rates are RF24_250KBPS, RF24_1MBPS, or RF24_2MBPS.  (2 Mbps
 // works with genuine Nordic Semiconductor chips only, not the counterfeits.)
-#define DATA_RATE RF24_1MBPS
+#define DATA_RATE RF24_250KBPS
 
 // Valid CRC length values are RF24_CRC_8, RF24_CRC_16, and RF24_CRC_DISABLED
 #define CRC_LENGTH RF24_CRC_16
@@ -164,7 +161,7 @@ constexpr int numReadPipes = sizeof(readPipeAddresses) / (sizeof(uint8_t) * 6);
 #define RF_CHANNEL 80  // Electric Garden Theremin is on ch. 80, Illumicone is on ch. 97
 
 // RF24_PA_MIN = -18 dBm, RF24_PA_LOW = -12 dBm, RF24_PA_HIGH = -6 dBm, RF24_PA_MAX = 0 dBm
-#define RF_POWER_LEVEL RF24_PA_MIN
+#define RF_POWER_LEVEL RF24_PA_LOW
 
 
 /**********************************************************
@@ -228,9 +225,9 @@ static bool isActive;
 static bool wasActive;
 
 // We don't know how many patterns the pixel minion supports, so we'll send
-// a number in the range [0, INT_MAX] and let the minion figure out the pattern
-// number using patternNumStep mod numPatterns.
-static int16_t patternNumStep = 1;
+// a number in the range [0, testPatternIdRangeStart) and let the minion
+// decide which pattern id corresponds to the number.
+static int16_t patternNum;
 
 uint16_t dist1 = DEFAULTDIST1;
 uint16_t dist2 = DEFAULTDIST2;
@@ -245,7 +242,8 @@ bool deadstickTimeout = false;
 uint8_t deadstickGoodMeasmtCount = 0;
 
 // noToneFlag is set when we turn off the speaker due to inactivity.
-// We use it to make sure that the tone is set when we become active again.
+// We use it to make sure that the tone is set when we become active again
+// and to keep from repeatedly turning the speaker off when it is already off.
 bool noToneFlag = true;
 
 VL53L0X sensor1; // constructor for Pololu's sensor control objects
@@ -705,17 +703,15 @@ void runPatternSelectionStateMachine(void)
         lastRotChangeMs = now;
         state = FlowerRotationState::FLOWER_ROTATING_CCW;
       }
-      // Been rotating clockwise long enough?
+      // Been rotating clockwise long enough to change the pattern?
       else if (now - lastRotChangeMs > rotDurationForChangeMs) {
-        if (patternNumStep < INT_MAX) {
-          ++patternNumStep;
-        }
-        else {
-          patternNumStep = 0;
+        ++patternNum;
+        if (patternNum >= testPatternIdRangeStart) {
+          patternNum = 0;
         }
 #ifdef ENABLE_DEBUG_PRINT
-        Serial.print(F("patternNumStep="));
-        Serial.println(patternNumStep);
+        Serial.print(F("patternNum="));
+        Serial.println(patternNum);
 #endif
         state = FlowerRotationState::WAIT_FLOWER_STOP_ROTATING_CW;
       }
@@ -748,17 +744,17 @@ void runPatternSelectionStateMachine(void)
         lastRotChangeMs = now;
         state = FlowerRotationState::FLOWER_ROTATING_CW;
       }
-      // Been rotating counterclockwise long enough?
+      // Been rotating counterclockwise long enough to changge the pattern?
       else if (now - lastRotChangeMs > rotDurationForChangeMs) {
-        if (patternNumStep > 0) {
-          --patternNumStep;
+        if (patternNum > 0) {
+          --patternNum;
         }
         else {
-          patternNumStep = INT_MAX;
+          patternNum = testPatternIdRangeStart - 1;
         }
 #ifdef ENABLE_DEBUG_PRINT
-        Serial.print(F("patternNumStep="));
-        Serial.println(patternNumStep);
+        Serial.print(F("patternNum="));
+        Serial.println(patternNum);
 #endif
         state = FlowerRotationState::WAIT_FLOWER_STOP_ROTATING_CCW;
       }
@@ -784,16 +780,16 @@ void broadcastMeasurements()
 {
 #ifdef ENABLE_RADIO
 
+  radio.stopListening();
+
   constexpr uint8_t numDistanceMeasmts = 3;
 
-  payload.measurements[0] = patternNumStep;
+  payload.measurements[0] = patternNum;
   payload.measurements[1] = dist1 >= 0 && dist1 <= 1023 ? dist1 : 1023;
   payload.measurements[2] = dist2 >= 0 && dist2 <= 1023 ? dist2 : 1023;
   payload.measurements[3] = dist3 >= 0 && dist3 <= 1023 ? dist3 : 1023;
 
   payload.widgetHeader.isActive = isActive;
-
-  radio.stopListening();
 
   if (!radio.write(&payload, sizeof(WidgetHeader) + sizeof(int16_t) * (numDistanceMeasmts + 1), !WANT_ACK)) {
 #ifdef ENABLE_DEBUG_PRINT
@@ -900,11 +896,13 @@ void loop()
   read_three_sensors();
 
   if (deadstickTimeout) {
-    noTone(SPEAKER);
-    noToneFlag = true;
+    if (!noToneFlag) {
+      noTone(SPEAKER);
+      noToneFlag = true;
 #ifdef ENABLE_D
-    printf("loop()A                               DEADSTICK_TIMEOUT \n");
+      printf("loop()A                               DEADSTICK_TIMEOUT \n");
 #endif
+    }
   }
   else {
     uint16_t Pitch = getPitch(dist1);
@@ -920,9 +918,6 @@ void loop()
   // Check for and act on an update from the pattern selection widget.
   runPatternSelectionStateMachine();
 
-//  // The theremin is active when a deadstick timeout has not occurred.
-//  isActive = !deadstickTimeout;
-  
   // Periodically broadcast the measurements to the pixel minions.
   isActive = true;  // The theremin always drives the patterns, even when it isn't being interacted with.
   if (now - lastTxMs >= activeTxIntervalMs) {
