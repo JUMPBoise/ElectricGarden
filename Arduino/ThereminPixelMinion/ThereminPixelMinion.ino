@@ -21,7 +21,7 @@
  * Options *
  ***********/
 
-#define ENABLE_DEBUG_PRINT
+//#define ENABLE_DEBUG_PRINT
 #define ENABLE_RADIO
 //#define ENABLE_WATCHDOG
 
@@ -270,7 +270,7 @@ constexpr uint8_t defaultPatternId = Rainbow::id;
  ***********************/
 
 // Possible data rates are RF24_250KBPS, RF24_1MBPS, or RF24_2MBPS (genuine Noric chips only).
-#define DATA_RATE RF24_1MBPS
+#define DATA_RATE RF24_250KBPS
 
 // Valid CRC length values are RF24_CRC_8, RF24_CRC_16, and RF24_CRC_DISABLED
 #define CRC_LENGTH RF24_CRC_16
