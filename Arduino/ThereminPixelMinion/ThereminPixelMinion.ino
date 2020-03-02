@@ -58,11 +58,11 @@
  ******************************/
 
 // Enable only one of these.
-#define TARGET_IS_OLD_TREE
+//#define TARGET_IS_OLD_TREE
 //#define TARGET_IS_NEW_TREE
 //#define TARGET_IS_CLOUD
 //#define TARGET_IS_LARGE_GIRAFFE_BODY
-//#define TARGET_IS_SMALL_GIRAFFE_BODY
+#define TARGET_IS_SMALL_GIRAFFE_BODY
 //#define TARGET_IS_LARGE_GIRAFFE_LEGS
 //#define TARGET_IS_SMALL_GIRAFFE_LEGS
 //#define TARGET_IS_ROSS_DEVL
@@ -71,7 +71,7 @@
 
 
 /*********************************************
- * Implementation and Behavior Configuration *f
+ * Implementation and Behavior Configuration *
  *********************************************/
 
 #define LAMP_TEST_PIN A0
@@ -234,7 +234,7 @@ constexpr uint8_t displayPatternIdIdx = 1;
   constexpr uint8_t displayPatternIdXref[numPatternIds][2] = {
     {MiddleOut::id     , Rainbow::id       },
     {OutsideIn::id     , Stripes::id       },
-    {PlasmaBall::id    , Tetris::id        }
+    {PlasmaBall::id    , Tetris::id        },
     {Rainbow::id       , OutsideIn::id     },
     {Stripes::id       , MiddleOut::id     },
     {YellowGiraffe::id , YellowGiraffe::id },
