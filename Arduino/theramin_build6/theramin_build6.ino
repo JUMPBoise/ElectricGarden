@@ -32,7 +32,7 @@
 // #include <LibPrintf.h> // always compile serial and printf
 
 #define ENABLE_RADIO
-//#define ENABLE_DEBUG_PRINT
+#define ENABLE_DEBUG_PRINT
 //#define ENABLE_D // comment out to drop tagged printing
 //#define ENABLE_STOPWATCH // comment out unless you want to to measure elapsed time between loops
 
@@ -124,6 +124,14 @@ static constexpr uint32_t rotDurationForChangeMs = 3000;
 
 // Nwdgt, where N indicates the payload type (0: stress test; 1: position
 // and velocity; 2: measurement vector; 3,4: undefined; 5: custom)
+#define TX_PIPE_ADDRESS "2wdgt"
+
+// Nwdgt, where N indicates the pipe number (0-6) and payload type (0: stress test;
+// 1: position & velocity; 2: measurement vector; 3,4: undefined; 5: custom
+constexpr uint8_t readPipeAddresses[][6] = {"0wdgt", "1wdgt", "2wdgt", "3wdgt", "4wdgt", "5wdgt"};
+constexpr int numReadPipes = sizeof(readPipeAddresses) / (sizeof(uint8_t) * 6);
+
+// We transmit data to the pixel minions using the measurement vector address.
 #define TX_PIPE_ADDRESS "2wdgt"
 
 // Set WANT_ACK to false, TX_RETRY_DELAY_MULTIPLIER to 0, and TX_MAX_RETRIES
@@ -588,13 +596,14 @@ bool handleMeasurementVectorPayload(const MeasurementVectorPayload* payload, uin
   // and that widget should be a flower.  So, we won't worry about the widget
   // id in payload->widgetHeader.id.
 
-  if (payload->widgetHeader.isActive) {
+  // TODO:  replace magic numbers -1000 and 1000 with named constants
+  if (payload->widgetHeader.isActive && payload->measurements[5] >= -1000 && payload->measurements[5] <= 1000) {
     // We use the GyroZ measurement, which is the rotational velocity of the flower.
     currentFlowerRotVel = payload->measurements[5];
-#ifdef ENABLE_DEBUG_PRINT
-    Serial.print(F("got currentFlowerRotVel "));
-    Serial.println(currentFlowerRotVel);
-#endif
+//#ifdef ENABLE_DEBUG_PRINT
+//    Serial.print(F("got currentFlowerRotVel "));
+//    Serial.println(currentFlowerRotVel);
+//#endif
   }
   else {
     Serial.println(F("Flower is inactive; setting currentFlowerRotVel to 0."));
@@ -628,10 +637,10 @@ void pollRadio()
 #endif
     return;
   }
-#ifdef ENABLE_DEBUG_PRINT
-  Serial.print(F("got message on pipe "));
-  Serial.println(pipeNum);
-#endif
+//#ifdef ENABLE_DEBUG_PRINT
+//  Serial.print(F("got message on pipe "));
+//  Serial.println(pipeNum);
+//#endif
 
   radio.read(payload, payloadSize);
 
@@ -670,7 +679,10 @@ void runPatternSelectionStateMachine(void)
       break;
 
     case FlowerRotationState::FLOWER_NOT_ROTATING:
-      // Rotating clockwise?
+//#ifdef ENABLE_DEBUG_PRINT
+//    Serial.print(F("FLOWER_NOT_ROTATING:  currentFlowerRotVel="));
+//    Serial.println(currentFlowerRotVel);
+//#endif      // Rotating clockwise?
       if (currentFlowerRotVel >= flowerMinCwRotVel) {
         lastRotChangeMs = now;
         state = FlowerRotationState::FLOWER_ROTATING_CW;
@@ -701,6 +713,10 @@ void runPatternSelectionStateMachine(void)
         else {
           patternNumStep = 0;
         }
+#ifdef ENABLE_DEBUG_PRINT
+        Serial.print(F("patternNumStep="));
+        Serial.println(patternNumStep);
+#endif
         state = FlowerRotationState::WAIT_FLOWER_STOP_ROTATING_CW;
       }
       break;
@@ -719,6 +735,10 @@ void runPatternSelectionStateMachine(void)
       break;
 
     case FlowerRotationState::FLOWER_ROTATING_CCW:
+//#ifdef ENABLE_DEBUG_PRINT
+//    Serial.print(F("FLOWER_ROTATING_CCW:  currentFlowerRotVel="));
+//    Serial.println(currentFlowerRotVel);
+//#endif      // Rotating clockwise?
       if (currentFlowerRotVel > flowerMinCCwRotVel && currentFlowerRotVel < flowerMinCwRotVel) {
         lastRotChangeMs = now;
         state = FlowerRotationState::FLOWER_NOT_ROTATING;
@@ -736,6 +756,10 @@ void runPatternSelectionStateMachine(void)
         else {
           patternNumStep = INT_MAX;
         }
+#ifdef ENABLE_DEBUG_PRINT
+        Serial.print(F("patternNumStep="));
+        Serial.println(patternNumStep);
+#endif
         state = FlowerRotationState::WAIT_FLOWER_STOP_ROTATING_CCW;
       }
       break;
@@ -777,9 +801,9 @@ void broadcastMeasurements()
 #endif
   }
   else {
-#ifdef ENABLE_DEBUG_PRINT
-    Serial.println(F("radio.write succeeded."));
-#endif
+//#ifdef ENABLE_DEBUG_PRINT
+//    Serial.println(F("radio.write succeeded."));
+//#endif
   }
 
   radio.startListening();
@@ -811,12 +835,17 @@ void configureRadio(
 
   radio.openWritingPipe((const uint8_t*) writePipeAddress);
 
+  for (uint8_t i = 0; i < numReadPipes; ++i) {
+      radio.openReadingPipe(i, readPipeAddresses[i]);
+  }
+
 #ifdef ENABLE_DEBUG_PRINT
   radio.printDetails();
 #endif
 
   radio.startListening();
 }
+
 
 
 void setup() {
@@ -891,10 +920,11 @@ void loop()
   // Check for and act on an update from the pattern selection widget.
   runPatternSelectionStateMachine();
 
-  // The theremin is active when a deadstick timeout has not occurred.
-  isActive = !deadstickTimeout;
-
+//  // The theremin is active when a deadstick timeout has not occurred.
+//  isActive = !deadstickTimeout;
+  
   // Periodically broadcast the measurements to the pixel minions.
+  isActive = true;  // The theremin always drives the patterns, even when it isn't being interacted with.
   if (now - lastTxMs >= activeTxIntervalMs) {
     // When the theremin isn't active, we don't need to broadcast measurements as often.
     if (isActive || wasActive || now - lastTxMs >= inactiveTxIntervalMs) {
