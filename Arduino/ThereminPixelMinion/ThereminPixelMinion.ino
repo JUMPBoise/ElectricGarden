@@ -2,12 +2,14 @@
  *                                                                          *
  * Theremin Pixel Pattern Generator                                         *
  *                                                                          *
- * Author(s):  Ross Butler                                                  *
+ * Created at JUMP (Jack's Urban Meeting Place) -- jumpboise.org            *
+ *                                                                          *
+ * Contributors(s):  Ross Butler, Justin Maier                              *
  *                                                                          *
  * January 2020                                                             *
  *                                                                          *
  * based on RF_mesh_TREES_receiver_side (Feb. 2019 version) by Jesse Cordtz *
- * and GardenSpinner (Dec. 2019 versiton) by Ross Butler                     *
+ * and GardenSpinner (Dec. 2019 version) by Ross Butler                     *
  *                                                                          *
  ****************************************************************************/
 
@@ -19,7 +21,7 @@
  * Options *
  ***********/
 
-//#define ENABLE_DEBUG_PRINT
+#define ENABLE_DEBUG_PRINT
 #define ENABLE_RADIO
 //#define ENABLE_WATCHDOG
 
@@ -56,8 +58,8 @@
  ******************************/
 
 // Enable only one of these.
-//#define TARGET_IS_OLD_TREE
-#define TARGET_IS_NEW_TREE
+#define TARGET_IS_OLD_TREE
+//#define TARGET_IS_NEW_TREE
 //#define TARGET_IS_CLOUD
 //#define TARGET_IS_LARGE_GIRAFFE_BODY
 //#define TARGET_IS_SMALL_GIRAFFE_BODY
@@ -159,7 +161,6 @@
 
 #define LAMP_TEST_ACTIVE LOW
 
-
 // Use these for common-anode RGB LED.
 //constexpr uint8_t rgbLedLowIntensity = 255;
 //constexpr uint8_t rgbLedHighIntensity = 0;
@@ -201,37 +202,62 @@ constexpr int16_t minValidDistance = 0;
 constexpr int16_t maxValidDistance = 4000;
 
 constexpr uint8_t allOffPatternId = 255;
+constexpr uint8_t testPatternIdRangeStart = 250;
 
-// the list of patterns that can be selected and displayed
+// This is the list of patterns that can be selected and displayed.
+// Test patterns must appear last.  The sequence of non-test patterns
+// in this array should result in a dramatic change each time the
+// pattern number is changed by one.
 constexpr uint8_t patternIds[] = {
-  MiddleOut::id,
-  OutsideIn::id,
-  PlasmaBall::id,
   Rainbow::id,
-  SectionLocator::id,
+  MiddleOut::id,
+  PlasmaBall::id,
+  OutsideIn::id,
   Stripes::id,
-  StripTest::id,
   YellowGiraffe::id,
-  Tetris::id};
+  Tetris::id,
+  // test patterns
+  SectionLocator::id,
+  StripTest::id
+};
 constexpr uint8_t numPatternIds = sizeof(patternIds) / sizeof(uint8_t);
 
-#ifdef NO_COMPILE_ROSS
-#if defined(TARGET_IS_GIRAFFE_BODY) || defined(TARGET_IS_LARGE_GIRAFFE_LEGS) || defined(TARGET_IS_SMALL_GIRAFFE_LEGS)
-  #define USE_PATTERN_XREF
-  constexpr uint8_t selectedPatternIdIdx = 0;
-  constexpr uint8_t displayPatternIdIdx = 1;
+#define USE_PATTERN_XREF
+constexpr uint8_t selectedPatternIdIdx = 0;
+constexpr uint8_t displayPatternIdIdx = 1;
+
+// Always put a different pattern on the giraffes so that they stand out from the trees.
+#if    defined(TARGET_IS_LARGE_GIRAFFE_BODY) \
+    || defined(TARGET_IS_SMALL_GIRAFFE_BODY) \
+    || defined(TARGET_IS_LARGE_GIRAFFE_LEGS) \
+    || defined(TARGET_IS_SMALL_GIRAFFE_LEGS)
   constexpr uint8_t displayPatternIdXref[numPatternIds][2] = {
-    {PlasmaBall::id    , YellowGiraffe::id},
-    {Stripes::id       , YellowGiraffe::id},
-    {OutsideIn::id     , YellowGiraffe::id},
-    {MiddleOut::id     , YellowGiraffe::id},
-    {Rainbow::id       , YellowGiraffe::id},
-    {Tetris::id        , YellowGiraffe::id},
+    {MiddleOut::id     , Rainbow::id       },
+    {OutsideIn::id     , Stripes::id       },
+    {PlasmaBall::id    , Tetris::id        }
+    {Rainbow::id       , OutsideIn::id     },
+    {Stripes::id       , MiddleOut::id     },
+    {YellowGiraffe::id , YellowGiraffe::id },
+    {Tetris::id        , PlasmaBall::id    },
+    // These are test patterns and should always be mapped to the same.
     {SectionLocator::id, SectionLocator::id},
-    {StripTest::id     , StripTest::id}
+    {StripTest::id     , StripTest::id     },
+  };
+#else
+  // Everything that is not a giraffe does not do YellowGiraffe.
+  constexpr uint8_t displayPatternIdXref[numPatternIds][2] = {
+    {MiddleOut::id     , MiddleOut::id     },
+    {OutsideIn::id     , OutsideIn::id     },
+    {PlasmaBall::id    , PlasmaBall::id    },
+    {Rainbow::id       , Rainbow::id       },
+    {Stripes::id       , Stripes::id       },
+    {YellowGiraffe::id , Rainbow::id       },
+    {Tetris::id        , Tetris::id        },
+    // These are test patterns and should always be mapped to the same.
+    {SectionLocator::id, SectionLocator::id},
+    {StripTest::id     , StripTest::id     },
   };
 #endif
-#endif  // #ifdef NO_COMPILE_ROSS
 
 // The defaut pattern is the active pattern upon startup and remains the active
 // pattern until measurements with a different pattern id are received or simulated.
@@ -366,6 +392,28 @@ uint16_t freeRam()
 /*********************
  * Pattern Rendering *
  *********************/
+
+uint8_t convertThereminPatternNumberToPatternId(uint8_t patternNum)
+{
+  static uint8_t patternIdxModulus;
+
+  if (patternIdxModulus == 0) {
+    // The modulus is the number of non-test patterns in patternIds.
+    // Note that the test patterns must appear last in patternIds.
+    for (patternIdxModulus = 0;
+         patternIdxModulus < numPatternIds && patternIds[patternIdxModulus] < testPatternIdRangeStart;
+         ++patternIdxModulus);
+#ifdef ENABLE_DEBUG_PRINT
+    Serial.print(F("numPatternIds="));
+    Serial.print(numPatternIds);
+    Serial.print(F(" patternIdxModulus="));
+    Serial.println(patternIdxModulus);
+#endif
+  }
+
+  return patternNum < testPatternIdRangeStart ? patternIds[patternNum % patternIdxModulus] : patternNum;
+}
+
 
 // Some target structures should display a different set or subset of patterns
 // rather than the full set.  For those structures, a cross reference table maps the
@@ -517,7 +565,7 @@ bool handleMeasurementVectorPayload(const MeasurementVectorPayload* payload, uin
     widgetIsActive = true;
 
     // Update activePatternId only if we've received the same new pattern number multiple times.
-    uint8_t newPatternId = (uint8_t) payload->measurements[0];
+    uint8_t newPatternId = convertThereminPatternNumberToPatternId((uint8_t) payload->measurements[0]);
     if (newPatternId != activePatternId && ++newPatternRepetitionCount >= newPatternRepetitionThreshold) {
       newPatternRepetitionCount = 0;
       activePatternId = newPatternId;
@@ -573,10 +621,10 @@ void pollRadio()
 #endif
     return;
   }
-#ifdef ENABLE_DEBUG_PRINT
-  Serial.print(F("got message on pipe "));
-  Serial.println(pipeNum);
-#endif
+//#ifdef ENABLE_DEBUG_PRINT
+//  Serial.print(F("got message on pipe "));
+//  Serial.println(pipeNum);
+//#endif
 
   radio.read(payload, payloadSize);
 
