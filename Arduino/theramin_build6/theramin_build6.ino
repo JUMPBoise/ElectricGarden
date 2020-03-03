@@ -78,18 +78,20 @@
 
 static constexpr uint8_t widgetId = 30;
 static constexpr uint32_t activeTxIntervalMs = 50L;
-static constexpr uint32_t inactiveTxIntervalMs = 250L;  // should be a multiple of activeTxIntervalMs
+static constexpr uint32_t inactiveTxIntervalMs = 250L;      // should be a multiple of activeTxIntervalMs
 
-static constexpr uint16_t DEADSTICK_TIMEOUT_PERIOD = 5000; // 5000 ms.
+static constexpr uint16_t DEADSTICK_TIMEOUT_PERIOD = 5000;  // 5000 ms.
 
-static constexpr uint16_t  LoErgoRange = 200; // the ergonomic range where sensors are used to play music
-static constexpr uint16_t  HiErgoRange = 700; // is fixed here to be 100 mm to 600 mm
-static constexpr uint16_t  LoNormalRange = 0;    // the ergonomic range will be mapped into a normalized
-static constexpr uint16_t  HiNormalRange = 1023; // range, from 0 to 1023
+static constexpr uint16_t LoErgoRange = 200;      // the ergonomic range where sensors are used to play music
+static constexpr uint16_t HiErgoRange = 700;      // is fixed here to be 100 mm to 600 mm
+static constexpr uint16_t LoNormalRange = 0;      // the ergonomic range will be mapped into a normalized
+static constexpr uint16_t HiNormalRange = 1023;   // range, from 0 to 1023
 static constexpr uint16_t volumePotLowStep = 0;
 static constexpr uint16_t volumePotHiStep = 128;
-static constexpr uint16_t LoPitch = 300;    //  lowest frequency toned is 300 hz
-static constexpr uint16_t HiPitch = 4000;  //  highest frequency toned is 4000 hz  
+static constexpr uint16_t LoPitch = 300;          //  lowest frequency toned is 300 hz
+static constexpr uint16_t HiPitch = 4000;         //  highest frequency toned is 4000 hz  
+
+static constexpr uint32_t chirpPeriodMs = 150;    // period (in ms) and pitch shift (increase in dist3) of the sharp, rising chirp
 
 #define DEFAULTDIST1 400
 #define DEFAULTDIST2 400
@@ -114,6 +116,7 @@ constexpr uint32_t sensorReadHoldoffMs = 60;
 // with negative velocity.  No normal person will discern if the pattern
 // number is increasing or decreasing with one rotation or the other, so
 // who cares what the physical reality of the situation may be.
+static constexpr int16_t maxValidFlowerRotVel = 1000;
 static constexpr int16_t flowerMinCwRotVel = 20;
 static constexpr int16_t flowerMinCCwRotVel = -20;
 static constexpr uint32_t rotDurationForChangeMs = 2000;
@@ -122,12 +125,11 @@ static constexpr uint8_t testPatternIdRangeStart = 250;
 
 // ---------- radio configuration ----------
 
-//// Nwdgt, where N indicates the pipe number (0-6) and payload type (0: stress test;
-//// 1: position & velocity; 2: measurement vector; 3,4: undefined; 5: custom
-//constexpr uint8_t readPipeAddresses[][6] = {"0wdgt", "1wdgt", "2wdgt", "3wdgt", "4wdgt", "5wdgt"};
-//constexpr int numReadPipes = sizeof(readPipeAddresses) / (sizeof(uint8_t) * 6);
-// We transmit data to the pixel minions and receive data from the flower
-// (for pattern selection) using the measurement vector address (2wdgt).
+// The pipe address format is Nwdgt, where N indicates the pipe number (0-6)
+// and payload type (0: stress test; 1: position & velocity; 2: measurement
+// vector; 3,4: undefined; 5: custom.  We transmit data to the pixel minions
+// and receive data from the flower widget (for pattern selection) using the
+// measurement vector address (2wdgt).
 #define TX_PIPE_ADDRESS "2wdgt"
 
 // Set WANT_ACK to false, TX_RETRY_DELAY_MULTIPLIER to 0, and TX_MAX_RETRIES
@@ -155,17 +157,15 @@ static constexpr uint8_t testPatternIdRangeStart = 250;
 // WiFi ch. centers: 1:2412, 2:2417, 3:2422, 4:2427, 5:2432, 6:2437, 7:2442,
 //                   8:2447, 9:2452, 10:2457, 11:2462, 12:2467, 13:2472, 14:2484
 
-// temporarily, we set RF_CHANNEL to 76, to keep using the radio hardware, but not interfere
-// with testing of light patterns, put it back to channel 80 later
 #define RF_CHANNEL 80  // Electric Garden Theremin is on ch. 80, Illumicone is on ch. 97
 
 // RF24_PA_MIN = -18 dBm, RF24_PA_LOW = -12 dBm, RF24_PA_HIGH = -6 dBm, RF24_PA_MAX = 0 dBm
 #define RF_POWER_LEVEL RF24_PA_MIN
 
 
-/**********************************************************
- * Widget Packet Header and Payload Structure Definitions *
- **********************************************************/
+/********************
+ * Type Definitions *
+ ********************/
 
 union WidgetHeader {
   struct {
@@ -176,32 +176,10 @@ union WidgetHeader {
   uint8_t raw;
 };
 
-// pipe 0
-struct StressTestPayload {
-  WidgetHeader widgetHeader;
-  uint32_t     payloadNum;
-  uint32_t     numTxFailures;
-};
-
-// pipe 1
-struct PositionVelocityPayload {
-  WidgetHeader widgetHeader;
-  int16_t      position;
-  int16_t      velocity;
-};
-
-// pipe 2
 struct MeasurementVectorPayload {
   WidgetHeader widgetHeader;
   int16_t      measurements[15];
 };
-
-// pipe 5
-struct CustomPayload {
-  WidgetHeader widgetHeader;
-  uint8_t      buf[31];
-};
-
 
 // states for the flower rotation state machine that does pattern selection
 enum class FlowerRotationState {
@@ -473,31 +451,12 @@ uint16_t bendPitch(uint16_t pitch , uint16_t dist)
   // If the user moves hand away from sensor3, we want bend to stop,
   // so we do the bend only if measurementInRange3 is true.
 
-  uint16_t T = 300 ; // T is period of the sharp rising chirp, in ms, init to 1000
-  const uint16_t shortT = 200;
-  const uint16_t longT = 400;
-
 #ifdef  ENABLE_D
   printf("bendPitchA    pitch: %6d dist: %6d \n", pitch, dist);
 #endif
 
-/*
   if (measurementInRange3) {
-    T= map(dist,  LoNormalRange,HiNormalRange, shortT, longT);
-    pitch = pitch + 300* (millis() % T) / T;
-  }
-*/
-
-/*
-  if (measurementInRange3) {
-    T=300;
-    pitch = pitch + 300* (millis() % T) / T;
-  }
-*/
-
-  if (measurementInRange3) {
-    T=300;
-    pitch = pitch + millis() % T;
+    pitch = pitch + millis() % chirpPeriodMs;
   }
 
 #ifdef  ENABLE_D
@@ -593,8 +552,9 @@ bool handleMeasurementVectorPayload(const MeasurementVectorPayload* payload, uin
   // and that widget should be a flower.  So, we won't worry about the widget
   // id in payload->widgetHeader.id.
 
-  // TODO:  replace magic numbers -1000 and 1000 with named constants
-  if (payload->widgetHeader.isActive && payload->measurements[5] >= -1000 && payload->measurements[5] <= 1000) {
+  if (payload->widgetHeader.isActive
+      && payload->measurements[5] >= -maxValidFlowerRotVel
+      && payload->measurements[5] <= maxValidFlowerRotVel) {
     // We use the GyroZ measurement, which is the rotational velocity of the flower.
     currentFlowerRotVel = payload->measurements[5];
 //#ifdef ENABLE_DEBUG_PRINT
@@ -676,10 +636,6 @@ void runPatternSelectionStateMachine(void)
       break;
 
     case FlowerRotationState::FLOWER_NOT_ROTATING:
-//#ifdef ENABLE_DEBUG_PRINT
-//    Serial.print(F("FLOWER_NOT_ROTATING:  currentFlowerRotVel="));
-//    Serial.println(currentFlowerRotVel);
-//#endif      // Rotating clockwise?
       if (currentFlowerRotVel >= flowerMinCwRotVel) {
         lastRotChangeMs = now;
         state = FlowerRotationState::FLOWER_ROTATING_CW;
@@ -708,10 +664,6 @@ void runPatternSelectionStateMachine(void)
         if (patternNum >= testPatternIdRangeStart) {
           patternNum = 0;
         }
-#ifdef ENABLE_DEBUG_PRINT
-        Serial.print(F("patternNum="));
-        Serial.println(patternNum);
-#endif
         state = FlowerRotationState::WAIT_FLOWER_STOP_ROTATING_CW;
       }
       break;
@@ -730,10 +682,6 @@ void runPatternSelectionStateMachine(void)
       break;
 
     case FlowerRotationState::FLOWER_ROTATING_CCW:
-//#ifdef ENABLE_DEBUG_PRINT
-//    Serial.print(F("FLOWER_ROTATING_CCW:  currentFlowerRotVel="));
-//    Serial.println(currentFlowerRotVel);
-//#endif      // Rotating clockwise?
       if (currentFlowerRotVel > flowerMinCCwRotVel && currentFlowerRotVel < flowerMinCwRotVel) {
         lastRotChangeMs = now;
         state = FlowerRotationState::FLOWER_NOT_ROTATING;
@@ -751,10 +699,6 @@ void runPatternSelectionStateMachine(void)
         else {
           patternNum = testPatternIdRangeStart - 1;
         }
-#ifdef ENABLE_DEBUG_PRINT
-        Serial.print(F("patternNum="));
-        Serial.println(patternNum);
-#endif
         state = FlowerRotationState::WAIT_FLOWER_STOP_ROTATING_CCW;
       }
       break;
@@ -903,9 +847,6 @@ void loop()
     uint8_t Volume = getVolumeLevel(dist2);
     setPitch(Pitch);
     setVolumeLevel(Volume);
-#ifdef ENABLE_D
-    printf("loop()B       Pitch = %6d  Volume = %6d\n", Pitch,Volume);
-#endif       
   }
 
   // Check for and act on an update from the pattern selection widget.
