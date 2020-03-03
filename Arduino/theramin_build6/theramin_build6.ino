@@ -28,7 +28,6 @@
 // which tested at 2 ms per loop{...} at 11:30 pm on 2-7-2020
 
 
-
 // #include <LibPrintf.h> // always compile serial and printf
 
 #define ENABLE_RADIO
@@ -79,7 +78,7 @@
 
 static constexpr uint8_t widgetId = 30;
 static constexpr uint32_t activeTxIntervalMs = 50L;
-static constexpr uint32_t inactiveTxIntervalMs = 500L;  // should be a multiple of activeTxIntervalMs
+static constexpr uint32_t inactiveTxIntervalMs = 250L;  // should be a multiple of activeTxIntervalMs
 
 static constexpr uint16_t DEADSTICK_TIMEOUT_PERIOD = 5000; // 5000 ms.
 
@@ -123,12 +122,12 @@ static constexpr uint8_t testPatternIdRangeStart = 250;
 
 // ---------- radio configuration ----------
 
-// Nwdgt, where N indicates the pipe number (0-6) and payload type (0: stress test;
-// 1: position & velocity; 2: measurement vector; 3,4: undefined; 5: custom
-constexpr uint8_t readPipeAddresses[][6] = {"0wdgt", "1wdgt", "2wdgt", "3wdgt", "4wdgt", "5wdgt"};
-constexpr int numReadPipes = sizeof(readPipeAddresses) / (sizeof(uint8_t) * 6);
-
-// We transmit data to the pixel minions using the measurement vector address.
+//// Nwdgt, where N indicates the pipe number (0-6) and payload type (0: stress test;
+//// 1: position & velocity; 2: measurement vector; 3,4: undefined; 5: custom
+//constexpr uint8_t readPipeAddresses[][6] = {"0wdgt", "1wdgt", "2wdgt", "3wdgt", "4wdgt", "5wdgt"};
+//constexpr int numReadPipes = sizeof(readPipeAddresses) / (sizeof(uint8_t) * 6);
+// We transmit data to the pixel minions and receive data from the flower
+// (for pattern selection) using the measurement vector address (2wdgt).
 #define TX_PIPE_ADDRESS "2wdgt"
 
 // Set WANT_ACK to false, TX_RETRY_DELAY_MULTIPLIER to 0, and TX_MAX_RETRIES
@@ -161,7 +160,7 @@ constexpr int numReadPipes = sizeof(readPipeAddresses) / (sizeof(uint8_t) * 6);
 #define RF_CHANNEL 80  // Electric Garden Theremin is on ch. 80, Illumicone is on ch. 97
 
 // RF24_PA_MIN = -18 dBm, RF24_PA_LOW = -12 dBm, RF24_PA_HIGH = -6 dBm, RF24_PA_MAX = 0 dBm
-#define RF_POWER_LEVEL RF24_PA_LOW
+#define RF_POWER_LEVEL RF24_PA_MIN
 
 
 /**********************************************************
@@ -789,7 +788,8 @@ void broadcastMeasurements()
   payload.measurements[2] = dist2 >= 0 && dist2 <= 1023 ? dist2 : 1023;
   payload.measurements[3] = dist3 >= 0 && dist3 <= 1023 ? dist3 : 1023;
 
-  payload.widgetHeader.isActive = isActive;
+  // The theremin always drives the patterns, even when it isn't being interacted with.
+  payload.widgetHeader.isActive = true;
 
   if (!radio.write(&payload, sizeof(WidgetHeader) + sizeof(int16_t) * (numDistanceMeasmts + 1), !WANT_ACK)) {
 #ifdef ENABLE_DEBUG_PRINT
@@ -830,10 +830,6 @@ void configureRadio(
   radio.setCRCLength(crcLength);
 
   radio.openWritingPipe((const uint8_t*) writePipeAddress);
-
-  for (uint8_t i = 0; i < numReadPipes; ++i) {
-      radio.openReadingPipe(i, readPipeAddresses[i]);
-  }
 
 #ifdef ENABLE_DEBUG_PRINT
   radio.printDetails();
@@ -899,9 +895,6 @@ void loop()
     if (!noToneFlag) {
       noTone(SPEAKER);
       noToneFlag = true;
-#ifdef ENABLE_D
-      printf("loop()A                               DEADSTICK_TIMEOUT \n");
-#endif
     }
   }
   else {
@@ -919,13 +912,13 @@ void loop()
   runPatternSelectionStateMachine();
 
   // Periodically broadcast the measurements to the pixel minions.
-  isActive = true;  // The theremin always drives the patterns, even when it isn't being interacted with.
   if (now - lastTxMs >= activeTxIntervalMs) {
-    // When the theremin isn't active, we don't need to broadcast measurements as often.
-    if (isActive || wasActive || now - lastTxMs >= inactiveTxIntervalMs) {
+    // When in deadstickmode (i.e., the theremin isn't active),
+    // we don't need to broadcast measurements as often.
+    if (!deadstickTimeout || wasActive || now - lastTxMs >= inactiveTxIntervalMs) {
       lastTxMs = now;
       broadcastMeasurements();
-      wasActive = isActive;
+      wasActive = !deadstickTimeout;
     }
   }
 
