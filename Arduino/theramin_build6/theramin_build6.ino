@@ -80,7 +80,7 @@ static constexpr uint8_t widgetId = 30;
 static constexpr uint32_t activeTxIntervalMs = 50L;
 static constexpr uint32_t inactiveTxIntervalMs = 250L;      // should be a multiple of activeTxIntervalMs
 
-static constexpr uint16_t DEADSTICK_TIMEOUT_PERIOD = 5000;  // 5000 ms.
+static constexpr uint16_t DEADSTICK_TIMEOUT_PERIOD = 2500;  // 2500 ms.
 
 static constexpr uint16_t LoErgoRange = 200;      // the ergonomic range where sensors are used to play music
 static constexpr uint16_t HiErgoRange = 700;      // is fixed here to be 100 mm to 600 mm
@@ -380,6 +380,13 @@ void read_three_sensors()
       // DECLARE DEADSTICK_TIMEOUT
       deadstickTimeout = true;
       deadstickGoodMeasmtCount = 0;
+      // Start broadcasting the default measurements so that all the visuals go
+      // to their default appearance.  Also, if the volume is currently all the
+      // way down, we don't want to end up being silent if interaction starts
+      // again via one of the other sensors.
+      dist1 = DEFAULTDIST1;
+      dist2 = DEFAULTDIST2;
+      dist3 = DEFAULTDIST3;
     }
     return;
   }
@@ -392,13 +399,6 @@ void read_three_sensors()
       return;
     }
     deadstickTimeout = false;
-    // We're coming out of deadstick mode, and we probably don't have a full set
-    // of measurements yet.  So, set any that we don't yet have back to their default.
-    // We do that so if the volume was left at zero, we don't end up being silent
-    // when interaction starts via one of the other sensors.
-    if (!measurementInRange1) dist1 = DEFAULTDIST1;
-    if (!measurementInRange2) dist2 = DEFAULTDIST2;
-    if (!measurementInRange3) dist3 = DEFAULTDIST3;
   }
   
   if (measurementInRange1) dist1 = map(measure1, LoErgoRange, HiErgoRange, LoNormalRange, HiNormalRange);
@@ -412,11 +412,6 @@ void read_three_sensors()
 #ifdef ENABLE_D
       printf("read_3_sensorsD dist1: %6d dist2: %6d dist3: %6d\n", dist1,dist2,dist3);
 #endif
-
-#ifdef ENABLE_D
-      printf("read_3_sensorsD dist1: %6d dist2: %6d dist3: %6d \n", dist1,dist2,dist3);
-#endif
-
 }
 
 
@@ -880,3 +875,4 @@ void loop()
 #endif
 
 }
+
