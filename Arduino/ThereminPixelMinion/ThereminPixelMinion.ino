@@ -23,7 +23,7 @@
 
 //#define ENABLE_DEBUG_PRINT
 #define ENABLE_RADIO
-//#define ENABLE_WATCHDOG
+#define ENABLE_WATCHDOG
 
 
 
@@ -59,10 +59,10 @@
 
 // Enable only one of these.
 //#define TARGET_IS_OLD_TREE
-//#define TARGET_IS_NEW_TREE
+#define TARGET_IS_NEW_TREE
 //#define TARGET_IS_CLOUD
 //#define TARGET_IS_LARGE_GIRAFFE_BODY
-#define TARGET_IS_SMALL_GIRAFFE_BODY
+//#define TARGET_IS_SMALL_GIRAFFE_BODY
 //#define TARGET_IS_LARGE_GIRAFFE_LEGS
 //#define TARGET_IS_SMALL_GIRAFFE_LEGS
 //#define TARGET_IS_ROSS_DEVL
@@ -233,12 +233,11 @@ constexpr uint8_t displayPatternIdIdx = 1;
     || defined(TARGET_IS_SMALL_GIRAFFE_LEGS)
   constexpr uint8_t displayPatternIdXref[numPatternIds][2] = {
     {MiddleOut::id     , Rainbow::id       },
-    {OutsideIn::id     , Stripes::id       },
-    {PlasmaBall::id    , Tetris::id        },
+    {OutsideIn::id     , PlasmaBall::id    },
+    {PlasmaBall::id    , Stripes::id       },
     {Rainbow::id       , OutsideIn::id     },
     {Stripes::id       , MiddleOut::id     },
     {YellowGiraffe::id , YellowGiraffe::id },
-    {Tetris::id        , PlasmaBall::id    },
     // These are test patterns and should always be mapped to the same.
     {SectionLocator::id, SectionLocator::id},
     {StripTest::id     , StripTest::id     },
@@ -252,7 +251,6 @@ constexpr uint8_t displayPatternIdIdx = 1;
     {Rainbow::id       , Rainbow::id       },
     {Stripes::id       , Stripes::id       },
     {YellowGiraffe::id , Rainbow::id       },
-    {Tetris::id        , Tetris::id        },
     // These are test patterns and should always be mapped to the same.
     {SectionLocator::id, SectionLocator::id},
     {StripTest::id     , StripTest::id     },
@@ -284,12 +282,18 @@ constexpr uint8_t defaultPatternId = Rainbow::id;
 
 // Nwdgt, where N indicates the pipe number (0-6) and payload type (0: stress test;
 // 1: position & velocity; 2: measurement vector; 3,4: undefined; 5: custom
-constexpr uint8_t readPipeAddresses[][6] = {"0wdgt", "1wdgt", "2wdgt", "3wdgt", "4wdgt", "5wdgt"};
+//constexpr uint8_t readPipeAddresses[][6] = {"0wdgt", "1wdgt", "2wdgt", "3wdgt", "4wdgt", "5wdgt"};
+//constexpr int numReadPipes = sizeof(readPipeAddresses) / (sizeof(uint8_t) * 6);
+// We only need measurement vector messages on 2wdgt.
+constexpr uint8_t readPipeAddresses[][6] = {"2wdgt"};
 constexpr int numReadPipes = sizeof(readPipeAddresses) / (sizeof(uint8_t) * 6);
 
 // Probably no need to ever set auto acknowledgement to false because the sender
-// can control whether or not acks are sent by using the NO_ACK bit.
-#define ACK_WIDGET_PACKETS true
+// can control whether or not acks are sent by using the NO_ACK bit.  However . . .
+// There may be a problem where bad packets that make it through the CRC check have
+// the NO_ACK bit reset, causing unintended acks that jam up the channel.  We'll
+// turn off ACK_WIDGET_PACKETS in an attempt to avoid that possible problem.
+#define ACK_WIDGET_PACKETS false
 
 // RF24_PA_MIN = -18 dBm, RF24_PA_LOW = -12 dBm, RF24_PA_HIGH = -6 dBm, RF24_PA_MAX = 0 dBm
 #define RF_POWER_LEVEL RF24_PA_MAX
@@ -581,12 +585,12 @@ bool handleMeasurementVectorPayload(const MeasurementVectorPayload* payload, uin
     }
 
 #ifdef ENABLE_DEBUG_PRINT
-//  Serial.print(F("got distances"));
-//  for (uint8_t i = 0; i < numDistanceMeasmts; ++i) {
-//    Serial.print(" ");
-//    Serial.print(currentDistance[i]);
-//  }
-//  Serial.println();
+  Serial.print(F("got distances"));
+  for (uint8_t i = 0; i < numDistanceMeasmts; ++i) {
+    Serial.print(" ");
+    Serial.print(currentDistance[i]);
+  }
+  Serial.println();
 #endif
 
   }
@@ -630,7 +634,10 @@ void pollRadio()
 
   bool gotValidPayload = false;
   switch(pipeNum) {
-    case 2:
+    //case 2:
+    // We're subscribed to 2wdgt on pipe 0, so the measurement vector payloads will come in on that pipe.
+    // TODO:  need to rework this here and in Illumicone to decouple the Xwdgt addresses from the pipe numbers.
+    case 0:
         gotValidPayload = handleMeasurementVectorPayload((MeasurementVectorPayload*) payload, payloadSize);
         break;
     default:
@@ -729,7 +736,6 @@ void initRadio()
   radio.enableDynamicPayloads();
   radio.setCRCLength(CRC_LENGTH);
 
-  // Unlike widgetRcvr, we don't open pipe 0.
   for (uint8_t i = 0; i < numReadPipes; ++i) {
       radio.openReadingPipe(i, readPipeAddresses[i]);
   }
