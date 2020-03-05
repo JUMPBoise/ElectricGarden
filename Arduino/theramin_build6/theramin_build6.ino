@@ -31,7 +31,8 @@
 // #include <LibPrintf.h> // always compile serial and printf
 
 #define ENABLE_RADIO
-//#define ENABLE_DEBUG_PRINT
+#define ENABLE_SENSORS
+#define ENABLE_DEBUG_PRINT
 //#define ENABLE_D // comment out to drop tagged printing
 //#define ENABLE_STOPWATCH // comment out unless you want to to measure elapsed time between loops
 
@@ -42,7 +43,9 @@
 
 #include <limits.h>       // for INT_MAX
 #include <Wire.h>
-#include <VL53L0X.h>      // this is the header for the Pololu library for vl53l0x
+#ifdef ENABLE_SENSORS
+  #include <VL53L0X.h>      // this is the header for the Pololu library for vl53l0x
+#endif
 #include <RF24.h>
 #include <SPI.h>
 
@@ -142,8 +145,11 @@ static constexpr uint8_t testPatternIdRangeStart = 250;
 #define TX_MAX_RETRIES 0
 
 // Probably no need to ever set auto acknowledgement to false because the sender
-// can control whether or not acks are sent by using the NO_ACK bit.
-#define ACK_WIDGET_PACKETS true
+// can control whether or not acks are sent by using the NO_ACK bit.  However . . .
+// There may be a problem where bad packets that make it through the CRC check have
+// the NO_ACK bit reset, causing unintended acks that jam up the channel.  We'll
+// turn off ACK_WIDGET_PACKETS in an attempt to avoid that possible problem.
+#define ACK_WIDGET_PACKETS false
 
 // Possible data rates are RF24_250KBPS, RF24_1MBPS, or RF24_2MBPS.  (2 Mbps
 // works with genuine Nordic Semiconductor chips only, not the counterfeits.)
@@ -194,7 +200,8 @@ enum class FlowerRotationState {
 
 // ************************************ GLOBAL VARIABLES **************************
 
-RF24 radio(9, 10);    // CE on pin 9, CSN on pin 10, also uses SPI bus (SCK on 13, MISO on 12, MOSI on 11)
+//RF24 radio(9, 10);    // CE on pin 9, CSN on pin 10, also uses SPI bus (SCK on 13, MISO on 12, MOSI on 11)
+RF24 radio(8, 5);    // CE on pin 8, CSN on pin 5, also uses SPI bus (SCK on 13, MISO on 12, MOSI on 11)
 
 static MeasurementVectorPayload payload;
 
@@ -223,89 +230,23 @@ uint8_t deadstickGoodMeasmtCount = 0;
 // and to keep from repeatedly turning the speaker off when it is already off.
 bool noToneFlag = true;
 
+#ifdef ENABLE_SENSORS
 VL53L0X sensor1; // constructor for Pololu's sensor control objects
 VL53L0X sensor2;
 VL53L0X sensor3;
+#endif
+
+bool sensor1Available;
+bool sensor2Available;
+bool sensor3Available;
 
 int16_t currentFlowerRotVel;
 
 
-void initDistanceSensors()
-{
-  /*
-    in  void initDistanceSensors()
-    ( in the new arrangement using the Pololu code library, VL53L0X.cpp:
-      initialization is by using:       bool VL53L0X::init(bool io_2v8)
-      i2c address assignment is by:     void VL53L0X::setAddress(uint8_t new_address)  )
-    1. Reset all sensors by setting all of their XSHUT pins low ,
-    2. then, one sensor at at time:
-        a. after 10 ms, activate the sensor by making its XSHUT pin high, and leaving it high for rest of sketch
-        b. after 10 ms, initiate sensor using bool VL53L0X::init(bool io_2v8)
-        c. after 10 ms, assign sensor its new address using void VL53L0X::setAddress(uint8_t new_address)
-    3. Pick any number but 0x29 and whatever addres the other sensors areassigned.  Addresses must be under 0x7F.
-       Going with 0x30 to 0x3F is probably OK.
-    4. 10 ms after last address is assigned, start continuous reading of sensors, one sensor object at a time,
-       using void VL53L0X::startContinuous();
-  */
-
-  // all reset
-  digitalWrite(SHT_SENSOR1, LOW);
-  digitalWrite(SHT_SENSOR2, LOW);
-  digitalWrite(SHT_SENSOR3, LOW);
-  delay(10);
-
-  // activating SENSOR1
-  digitalWrite(SHT_SENSOR1, HIGH);
-  delay(10);
-
-  //init SENSOR1
-  if (!sensor1.init())
-  {
-    Serial.println("Failed to detect and initialize first sensor!");
-    while (1) {}
-  }
-
-  // setting address for SENSOR1
-  sensor1.setAddress(SENSOR1_ADDRESS);
-  delay(10);
-
-  //  activate SENSOR2
-  digitalWrite(SHT_SENSOR2, HIGH);
-  delay(10);
-
-  // init SENSOR2
-  if (!sensor2.init())
-  {
-    Serial.println("Failed to detect and initialize second sensor!");
-    while (1) {}
-  }
-  // setting address for SENSOR2
-  sensor2.setAddress(SENSOR2_ADDRESS);
-  delay(10);
-
-  //  activate SENSOR3
-  digitalWrite(SHT_SENSOR3, HIGH);
-  delay(10);
-
-  // init SENSOR3
-  if (!sensor3.init())
-  {
-    Serial.println("Failed to detect and initialize third sensor!");
-    while (1) {}
-  }
-  // setting address for SENSOR3
-  sensor3.setAddress(SENSOR3_ADDRESS);
-  delay(10);
-
-  sensor1.startContinuous(); // necessary to use CONTINUOUS mode
-  sensor2.startContinuous();
-  sensor3.startContinuous();
-
-}
-
 
 void read_three_sensors()
 {
+#ifdef ENABLE_SENSORS
   // only output is dist1,dist2 & dist3,  normalized to 0 to 1023 range,
   // and bool
 
@@ -332,13 +273,17 @@ void read_three_sensors()
   printf("read_3_sensorsA measure1: %6d measure2: %6d measure3: %6d\n", measure1,measure2,measure3);
 #endif
 
+  if (!sensor1Available) measurementInRange1 = false;
+  if (!sensor2Available) measurementInRange2 = false;
+  if (!sensor3Available) measurementInRange3 = false;
+
   // the condition below for reading sensorN is the same test that is used by
   // uint16_t VL53L0X::readRangeContinuousMillimeters(void) to determine whether to
   // actually get the sensor measurement or wait.
   // we only read the sensor if we KNOW we will not wait
   // if sensor isn't ready, measureX just stays same, no change, it's STATIC
 
-  if ((now - lastReadSensor1Ms) > sensorReadHoldoffMs) {
+  if (sensor1Available && (now - lastReadSensor1Ms) > sensorReadHoldoffMs) {
 //    if ((sensor1.readReg(VL53L0X::RESULT_INTERRUPT_STATUS) & 0x07) != 0) {
       lastReadSensor1Ms = now;
       int16_t newMeasure = sensor1.readRangeContinuousMillimeters();
@@ -349,7 +294,7 @@ void read_three_sensors()
 //    }
   }
 
-  if ((now - lastReadSensor2Ms) > sensorReadHoldoffMs) {
+  if (sensor2Available && (now - lastReadSensor2Ms) > sensorReadHoldoffMs) {
 //    if ((sensor2.readReg(VL53L0X::RESULT_INTERRUPT_STATUS) & 0x07) != 0) {
       lastReadSensor2Ms = now;
       int16_t newMeasure = sensor2.readRangeContinuousMillimeters();
@@ -360,7 +305,7 @@ void read_three_sensors()
 //    }
   }
 
-  if ((now - lastReadSensor3Ms) > sensorReadHoldoffMs) {
+  if (sensor3Available && (now - lastReadSensor3Ms) > sensorReadHoldoffMs) {
 //    if ((sensor3.readReg(VL53L0X::RESULT_INTERRUPT_STATUS) & 0x07) != 0) {
       lastReadSensor3Ms = now;
       int16_t newMeasure = sensor3.readRangeContinuousMillimeters();
@@ -412,6 +357,8 @@ void read_three_sensors()
 #ifdef ENABLE_D
       printf("read_3_sensorsD dist1: %6d dist2: %6d dist3: %6d\n", dist1,dist2,dist3);
 #endif
+
+#endif  // #ifdef ENABLE_SENSORS
 }
 
 
@@ -552,10 +499,10 @@ bool handleMeasurementVectorPayload(const MeasurementVectorPayload* payload, uin
       && payload->measurements[5] <= maxValidFlowerRotVel) {
     // We use the GyroZ measurement, which is the rotational velocity of the flower.
     currentFlowerRotVel = payload->measurements[5];
-//#ifdef ENABLE_DEBUG_PRINT
-//    Serial.print(F("got currentFlowerRotVel "));
-//    Serial.println(currentFlowerRotVel);
-//#endif
+#ifdef ENABLE_DEBUG_PRINT
+    Serial.print(F("got currentFlowerRotVel "));
+    Serial.println(currentFlowerRotVel);
+#endif
   }
   else {
     Serial.println(F("Flower is inactive; setting currentFlowerRotVel to 0."));
@@ -589,16 +536,19 @@ void pollRadio()
 #endif
     return;
   }
-//#ifdef ENABLE_DEBUG_PRINT
-//  Serial.print(F("got message on pipe "));
-//  Serial.println(pipeNum);
-//#endif
+#ifdef ENABLE_DEBUG_PRINT
+  Serial.print(F("got message on pipe "));
+  Serial.println(pipeNum);
+#endif
 
   radio.read(payload, payloadSize);
 
   bool gotValidPayload = false;
   switch(pipeNum) {
-    case 2:
+    //case 2:
+    // We're subscribed to 2wdgt on pipe 0, so the measurement vector payloads will come in on that pipe.
+    // TODO:  need to rework this here and in Illumicone to decouple the Xwdgt addresses from the pipe numbers.
+    case 0:
         gotValidPayload = handleMeasurementVectorPayload((MeasurementVectorPayload*) payload, payloadSize);
         break;
     default:
@@ -747,6 +697,90 @@ void broadcastMeasurements()
 }
 
 
+void initDistanceSensors()
+{
+#ifdef ENABLE_SENSORS
+  /*
+    in  void initDistanceSensors()
+    ( in the new arrangement using the Pololu code library, VL53L0X.cpp:
+      initialization is by using:       bool VL53L0X::init(bool io_2v8)
+      i2c address assignment is by:     void VL53L0X::setAddress(uint8_t new_address)  )
+    1. Reset all sensors by setting all of their XSHUT pins low ,
+    2. then, one sensor at at time:
+        a. after 10 ms, activate the sensor by making its XSHUT pin high, and leaving it high for rest of sketch
+        b. after 10 ms, initiate sensor using bool VL53L0X::init(bool io_2v8)
+        c. after 10 ms, assign sensor its new address using void VL53L0X::setAddress(uint8_t new_address)
+    3. Pick any number but 0x29 and whatever addres the other sensors areassigned.  Addresses must be under 0x7F.
+       Going with 0x30 to 0x3F is probably OK.
+    4. 10 ms after last address is assigned, start continuous reading of sensors, one sensor object at a time,
+       using void VL53L0X::startContinuous();
+  */
+
+  // all reset
+  digitalWrite(SHT_SENSOR1, LOW);
+  digitalWrite(SHT_SENSOR2, LOW);
+  digitalWrite(SHT_SENSOR3, LOW);
+  delay(10);
+
+  // activating SENSOR1
+  digitalWrite(SHT_SENSOR1, HIGH);
+  delay(10);
+
+  //init SENSOR1
+  if (!sensor1.init())
+  {
+    Serial.println("Failed to detect and initialize first sensor!");
+    sensor1Available = false;
+  }
+  else {
+    // setting address for SENSOR1
+    sensor1.setAddress(SENSOR1_ADDRESS);
+    delay(10);
+    sensor1Available = true;
+  }
+
+  //  activate SENSOR2
+  digitalWrite(SHT_SENSOR2, HIGH);
+  delay(10);
+
+  // init SENSOR2
+  if (!sensor2.init())
+  {
+    Serial.println("Failed to detect and initialize second sensor!");
+    sensor2Available = false;
+  }
+  else {
+    // setting address for SENSOR2
+    sensor2.setAddress(SENSOR2_ADDRESS);
+    delay(10);
+    sensor2Available = true;
+  }
+  
+  //  activate SENSOR3
+  digitalWrite(SHT_SENSOR3, HIGH);
+  delay(10);
+
+  // init SENSOR3
+  if (!sensor3.init())
+  {
+    Serial.println("Failed to detect and initialize third sensor!");
+    sensor3Available = false;
+  }
+  else {
+    // setting address for SENSOR3
+    sensor3.setAddress(SENSOR3_ADDRESS);
+    delay(10);
+    sensor3Available = true;
+  }
+  
+  if (sensor1Available) sensor1.startContinuous(); // necessary to use CONTINUOUS mode
+  if (sensor2Available) sensor2.startContinuous();
+  if (sensor3Available) sensor3.startContinuous();
+
+#endif  // #ifdef ENABLE_SENSORS
+}
+
+
 void configureRadio(
   RF24&             radio,
   const char*       writePipeAddress,
@@ -769,6 +803,7 @@ void configureRadio(
   radio.setCRCLength(crcLength);
 
   radio.openWritingPipe((const uint8_t*) writePipeAddress);
+  radio.openReadingPipe(0, (const uint8_t*) writePipeAddress);
 
 #ifdef ENABLE_DEBUG_PRINT
   radio.printDetails();
@@ -798,6 +833,7 @@ void setup() {
 
   delay(500);    
 
+#ifdef ENABLE_SENSORS
   pinMode(SHT_SENSOR1,OUTPUT);
   pinMode(SHT_SENSOR2,OUTPUT);
   pinMode(SHT_SENSOR3,OUTPUT);
@@ -806,6 +842,7 @@ void setup() {
   pinMode(SS1, OUTPUT);
   // Deassert chip select for now so that we can talk to the radio module.
   digitalWrite(SS1, HIGH);
+#endif
 
   // We don't need to explicitly call SPI.begin() because the RF24 library initializes SPI.
 
@@ -815,7 +852,9 @@ void setup() {
 
   Wire.begin();
 
+#ifdef ENABLE_SENSORS
   initDistanceSensors();
+#endif
 
   payload.widgetHeader.id = widgetId;
   payload.widgetHeader.channel = 0;
@@ -828,7 +867,11 @@ void loop()
 
   uint32_t now = millis();
 
+#ifdef ENABLE_SENSORS
   read_three_sensors();
+#else
+  deadstickTimeout = true;
+#endif
 
   if (deadstickTimeout) {
     if (!noToneFlag) {
@@ -853,7 +896,7 @@ void loop()
     // we don't need to broadcast measurements as often.
     if (!deadstickTimeout || wasActive || now - lastTxMs >= inactiveTxIntervalMs) {
       lastTxMs = now;
-      broadcastMeasurements();
+      //broadcastMeasurements();
       wasActive = !deadstickTimeout;
     }
   }
@@ -875,4 +918,3 @@ void loop()
 #endif
 
 }
-
