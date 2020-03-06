@@ -35,10 +35,10 @@
 //#define ENABLE_DEBUG_PRINT
 //#define ENABLE_D // comment out to drop tagged printing
 //#define ENABLE_STOPWATCH // comment out unless you want to to measure elapsed time between loops
+#define ENABLE_WATCHDOG
 
-#ifdef ENABLE_STOPWATCH
-  static unsigned long stopwatchTime1;
-  static unsigned long k ; // by default, on creation, static is initalized to zero
+#ifdef ENABLE_WATCHDOG
+  #include <avr/wdt.h>
 #endif
 
 #include <limits.h>       // for INT_MAX
@@ -199,6 +199,11 @@ enum class FlowerRotationState {
 
 
 // ************************************ GLOBAL VARIABLES **************************
+
+#ifdef ENABLE_STOPWATCH
+  static unsigned long stopwatchTime1;
+  static unsigned long k ; // by default, on creation, static is initalized to zero
+#endif
 
 //RF24 radio(9, 10);    // CE on pin 9, CSN on pin 10, also uses SPI bus (SCK on 13, MISO on 12, MOSI on 11)
 RF24 radio(8, 5);    // CE on pin 8, CSN on pin 5, also uses SPI bus (SCK on 13, MISO on 12, MOSI on 11)
@@ -858,6 +863,10 @@ void setup() {
 
   payload.widgetHeader.id = widgetId;
   payload.widgetHeader.channel = 0;
+
+#ifdef ENABLE_WATCHDOG
+  wdt_enable(WDTO_1S);     // enable the watchdog
+#endif
 }
 
 
@@ -917,4 +926,9 @@ void loop()
   }
 #endif
 
+#ifdef ENABLE_WATCHDOG
+  // Kick the dog (gently, of course) to let him know we're still alive.
+  wdt_reset();
+#endif
 }
+
