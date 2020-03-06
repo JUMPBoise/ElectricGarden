@@ -97,7 +97,7 @@ static constexpr uint16_t HiPitch = 4000;         //  highest frequency toned is
 static constexpr uint32_t chirpPeriodMs = 150;    // period (in ms) and pitch shift (increase in dist3) of the sharp, rising chirp
 
 #define DEFAULTDIST1 400
-#define DEFAULTDIST2 400
+#define DEFAULTDIST2 800
 #define DEFAULTDIST3 400
 
 // We need to see numGoodMeasurementsForDeadstickExit good measurements before exiting deadstick mode.
@@ -931,4 +931,3 @@ void loop()
   wdt_reset();
 #endif
 }
-
