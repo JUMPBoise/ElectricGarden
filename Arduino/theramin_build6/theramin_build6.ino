@@ -32,7 +32,7 @@
 
 #define ENABLE_RADIO
 #define ENABLE_SENSORS
-#define ENABLE_DEBUG_PRINT
+//#define ENABLE_DEBUG_PRINT
 //#define ENABLE_D // comment out to drop tagged printing
 //#define ENABLE_STOPWATCH // comment out unless you want to to measure elapsed time between loops
 
@@ -896,7 +896,7 @@ void loop()
     // we don't need to broadcast measurements as often.
     if (!deadstickTimeout || wasActive || now - lastTxMs >= inactiveTxIntervalMs) {
       lastTxMs = now;
-      //broadcastMeasurements();
+      broadcastMeasurements();
       wasActive = !deadstickTimeout;
     }
   }
