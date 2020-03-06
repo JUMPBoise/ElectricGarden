@@ -215,7 +215,6 @@ constexpr uint8_t patternIds[] = {
   OutsideIn::id,
   Stripes::id,
   YellowGiraffe::id,
-  Tetris::id,
   // test patterns
   SectionLocator::id,
   StripTest::id
