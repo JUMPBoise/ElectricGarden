@@ -19,7 +19,7 @@ class YellowGiraffe : public PixelPattern {
 
   public:
 
-    static constexpr uint8_t id = 252;
+    static constexpr uint8_t id = 249;
 
     // Default constructor and destructor don't do anything.
     YellowGiraffe() {}

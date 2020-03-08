@@ -58,12 +58,12 @@ void PlasmaBall::update(bool widgetIsActive)
   uint8_t cooling = map(curMeasmts[1], minMeasmtValues[1], maxMeasmtValues[1], 2, 55);
   uint8_t position = map(curMeasmts[2], minMeasmtValues[2], maxMeasmtValues[2], 0, numPixels - 1);
 
-  Serial.print(F("hue "));
-  Serial.print(hue);
-  Serial.print(F(", cooling "));
-  Serial.print(cooling);
-  Serial.print(F(", position "));
-  Serial.println(position);
+//  Serial.print(F("hue "));
+//  Serial.print(hue);
+//  Serial.print(F(", cooling "));
+//  Serial.print(cooling);
+//  Serial.print(F(", position "));
+//  Serial.println(position);
 
   // Clear
   fill_solid(pixels, numPixels, CRGB::Black);

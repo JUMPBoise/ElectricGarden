@@ -2,12 +2,14 @@
  *                                                                          *
  * Theremin Pixel Pattern Generator                                         *
  *                                                                          *
- * Author(s):  Ross Butler                                                  *
+ * Created at JUMP (Jack's Urban Meeting Place) -- jumpboise.org            *
+ *                                                                          *
+ * Contributors(s):  Ross Butler, Justin Maier                              *
  *                                                                          *
  * January 2020                                                             *
  *                                                                          *
  * based on RF_mesh_TREES_receiver_side (Feb. 2019 version) by Jesse Cordtz *
- * and GardenSpinner (Dec. 2019 versiton) by Ross Butler                     *
+ * and GardenSpinner (Dec. 2019 version) by Ross Butler                     *
  *                                                                          *
  ****************************************************************************/
 
@@ -21,7 +23,7 @@
 
 //#define ENABLE_DEBUG_PRINT
 #define ENABLE_RADIO
-//#define ENABLE_WATCHDOG
+#define ENABLE_WATCHDOG
 
 
 
@@ -69,7 +71,7 @@
 
 
 /*********************************************
- * Implementation and Behavior Configuration *f
+ * Implementation and Behavior Configuration *
  *********************************************/
 
 #define LAMP_TEST_PIN A0
@@ -159,7 +161,6 @@
 
 #define LAMP_TEST_ACTIVE LOW
 
-
 // Use these for common-anode RGB LED.
 //constexpr uint8_t rgbLedLowIntensity = 255;
 //constexpr uint8_t rgbLedHighIntensity = 0;
@@ -201,37 +202,59 @@ constexpr int16_t minValidDistance = 0;
 constexpr int16_t maxValidDistance = 4000;
 
 constexpr uint8_t allOffPatternId = 255;
+constexpr uint8_t testPatternIdRangeStart = 250;
 
-// the list of patterns that can be selected and displayed
+// This is the list of patterns that can be selected and displayed.
+// Test patterns must appear last.  The sequence of non-test patterns
+// in this array should result in a dramatic change each time the
+// pattern number is changed by one.
 constexpr uint8_t patternIds[] = {
-  MiddleOut::id,
-  OutsideIn::id,
-  PlasmaBall::id,
   Rainbow::id,
-  SectionLocator::id,
+  MiddleOut::id,
+  PlasmaBall::id,
+  OutsideIn::id,
   Stripes::id,
-  StripTest::id,
   YellowGiraffe::id,
-  Tetris::id};
+  // test patterns
+  SectionLocator::id,
+  StripTest::id
+};
 constexpr uint8_t numPatternIds = sizeof(patternIds) / sizeof(uint8_t);
 
-#ifdef NO_COMPILE_ROSS
-#if defined(TARGET_IS_GIRAFFE_BODY) || defined(TARGET_IS_LARGE_GIRAFFE_LEGS) || defined(TARGET_IS_SMALL_GIRAFFE_LEGS)
-  #define USE_PATTERN_XREF
-  constexpr uint8_t selectedPatternIdIdx = 0;
-  constexpr uint8_t displayPatternIdIdx = 1;
+#define USE_PATTERN_XREF
+constexpr uint8_t selectedPatternIdIdx = 0;
+constexpr uint8_t displayPatternIdIdx = 1;
+
+// Always put a different pattern on the giraffes so that they stand out from the trees.
+#if    defined(TARGET_IS_LARGE_GIRAFFE_BODY) \
+    || defined(TARGET_IS_SMALL_GIRAFFE_BODY) \
+    || defined(TARGET_IS_LARGE_GIRAFFE_LEGS) \
+    || defined(TARGET_IS_SMALL_GIRAFFE_LEGS)
   constexpr uint8_t displayPatternIdXref[numPatternIds][2] = {
-    {PlasmaBall::id    , YellowGiraffe::id},
-    {Stripes::id       , YellowGiraffe::id},
-    {OutsideIn::id     , YellowGiraffe::id},
-    {MiddleOut::id     , YellowGiraffe::id},
-    {Rainbow::id       , YellowGiraffe::id},
-    {Tetris::id        , YellowGiraffe::id},
+    {MiddleOut::id     , Rainbow::id       },
+    {OutsideIn::id     , PlasmaBall::id    },
+    {PlasmaBall::id    , Stripes::id       },
+    {Rainbow::id       , OutsideIn::id     },
+    {Stripes::id       , MiddleOut::id     },
+    {YellowGiraffe::id , YellowGiraffe::id },
+    // These are test patterns and should always be mapped to the same.
     {SectionLocator::id, SectionLocator::id},
-    {StripTest::id     , StripTest::id}
+    {StripTest::id     , StripTest::id     },
+  };
+#else
+  // Everything that is not a giraffe does not do YellowGiraffe.
+  constexpr uint8_t displayPatternIdXref[numPatternIds][2] = {
+    {MiddleOut::id     , MiddleOut::id     },
+    {OutsideIn::id     , OutsideIn::id     },
+    {PlasmaBall::id    , PlasmaBall::id    },
+    {Rainbow::id       , Rainbow::id       },
+    {Stripes::id       , Stripes::id       },
+    {YellowGiraffe::id , Rainbow::id       },
+    // These are test patterns and should always be mapped to the same.
+    {SectionLocator::id, SectionLocator::id},
+    {StripTest::id     , StripTest::id     },
   };
 #endif
-#endif  // #ifdef NO_COMPILE_ROSS
 
 // The defaut pattern is the active pattern upon startup and remains the active
 // pattern until measurements with a different pattern id are received or simulated.
@@ -244,7 +267,7 @@ constexpr uint8_t defaultPatternId = Rainbow::id;
  ***********************/
 
 // Possible data rates are RF24_250KBPS, RF24_1MBPS, or RF24_2MBPS (genuine Noric chips only).
-#define DATA_RATE RF24_1MBPS
+#define DATA_RATE RF24_250KBPS
 
 // Valid CRC length values are RF24_CRC_8, RF24_CRC_16, and RF24_CRC_DISABLED
 #define CRC_LENGTH RF24_CRC_16
@@ -258,12 +281,18 @@ constexpr uint8_t defaultPatternId = Rainbow::id;
 
 // Nwdgt, where N indicates the pipe number (0-6) and payload type (0: stress test;
 // 1: position & velocity; 2: measurement vector; 3,4: undefined; 5: custom
-constexpr uint8_t readPipeAddresses[][6] = {"0wdgt", "1wdgt", "2wdgt", "3wdgt", "4wdgt", "5wdgt"};
+//constexpr uint8_t readPipeAddresses[][6] = {"0wdgt", "1wdgt", "2wdgt", "3wdgt", "4wdgt", "5wdgt"};
+//constexpr int numReadPipes = sizeof(readPipeAddresses) / (sizeof(uint8_t) * 6);
+// We only need measurement vector messages on 2wdgt.
+constexpr uint8_t readPipeAddresses[][6] = {"2wdgt"};
 constexpr int numReadPipes = sizeof(readPipeAddresses) / (sizeof(uint8_t) * 6);
 
 // Probably no need to ever set auto acknowledgement to false because the sender
-// can control whether or not acks are sent by using the NO_ACK bit.
-#define ACK_WIDGET_PACKETS true
+// can control whether or not acks are sent by using the NO_ACK bit.  However . . .
+// There may be a problem where bad packets that make it through the CRC check have
+// the NO_ACK bit reset, causing unintended acks that jam up the channel.  We'll
+// turn off ACK_WIDGET_PACKETS in an attempt to avoid that possible problem.
+#define ACK_WIDGET_PACKETS false
 
 // RF24_PA_MIN = -18 dBm, RF24_PA_LOW = -12 dBm, RF24_PA_HIGH = -6 dBm, RF24_PA_MAX = 0 dBm
 #define RF_POWER_LEVEL RF24_PA_MAX
@@ -366,6 +395,28 @@ uint16_t freeRam()
 /*********************
  * Pattern Rendering *
  *********************/
+
+uint8_t convertThereminPatternNumberToPatternId(uint8_t patternNum)
+{
+  static uint8_t patternIdxModulus;
+
+  if (patternIdxModulus == 0) {
+    // The modulus is the number of non-test patterns in patternIds.
+    // Note that the test patterns must appear last in patternIds.
+    for (patternIdxModulus = 0;
+         patternIdxModulus < numPatternIds && patternIds[patternIdxModulus] < testPatternIdRangeStart;
+         ++patternIdxModulus);
+#ifdef ENABLE_DEBUG_PRINT
+    Serial.print(F("numPatternIds="));
+    Serial.print(numPatternIds);
+    Serial.print(F(" patternIdxModulus="));
+    Serial.println(patternIdxModulus);
+#endif
+  }
+
+  return patternNum < testPatternIdRangeStart ? patternIds[patternNum % patternIdxModulus] : patternNum;
+}
+
 
 // Some target structures should display a different set or subset of patterns
 // rather than the full set.  For those structures, a cross reference table maps the
@@ -517,7 +568,7 @@ bool handleMeasurementVectorPayload(const MeasurementVectorPayload* payload, uin
     widgetIsActive = true;
 
     // Update activePatternId only if we've received the same new pattern number multiple times.
-    uint8_t newPatternId = (uint8_t) payload->measurements[0];
+    uint8_t newPatternId = convertThereminPatternNumberToPatternId((uint8_t) payload->measurements[0]);
     if (newPatternId != activePatternId && ++newPatternRepetitionCount >= newPatternRepetitionThreshold) {
       newPatternRepetitionCount = 0;
       activePatternId = newPatternId;
@@ -533,12 +584,12 @@ bool handleMeasurementVectorPayload(const MeasurementVectorPayload* payload, uin
     }
 
 #ifdef ENABLE_DEBUG_PRINT
-//  Serial.print(F("got distances"));
-//  for (uint8_t i = 0; i < numDistanceMeasmts; ++i) {
-//    Serial.print(" ");
-//    Serial.print(currentDistance[i]);
-//  }
-//  Serial.println();
+  Serial.print(F("got distances"));
+  for (uint8_t i = 0; i < numDistanceMeasmts; ++i) {
+    Serial.print(" ");
+    Serial.print(currentDistance[i]);
+  }
+  Serial.println();
 #endif
 
   }
@@ -573,16 +624,19 @@ void pollRadio()
 #endif
     return;
   }
-#ifdef ENABLE_DEBUG_PRINT
-  Serial.print(F("got message on pipe "));
-  Serial.println(pipeNum);
-#endif
+//#ifdef ENABLE_DEBUG_PRINT
+//  Serial.print(F("got message on pipe "));
+//  Serial.println(pipeNum);
+//#endif
 
   radio.read(payload, payloadSize);
 
   bool gotValidPayload = false;
   switch(pipeNum) {
-    case 2:
+    //case 2:
+    // We're subscribed to 2wdgt on pipe 0, so the measurement vector payloads will come in on that pipe.
+    // TODO:  need to rework this here and in Illumicone to decouple the Xwdgt addresses from the pipe numbers.
+    case 0:
         gotValidPayload = handleMeasurementVectorPayload((MeasurementVectorPayload*) payload, payloadSize);
         break;
     default:
@@ -681,7 +735,6 @@ void initRadio()
   radio.enableDynamicPayloads();
   radio.setCRCLength(CRC_LENGTH);
 
-  // Unlike widgetRcvr, we don't open pipe 0.
   for (uint8_t i = 0; i < numReadPipes; ++i) {
       radio.openReadingPipe(i, readPipeAddresses[i]);
   }
